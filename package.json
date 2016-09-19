@@ -1,0 +1,30 @@
+{
+  "name": "csv-tools",
+  "version": "1.0.0",
+  "description": "Convert CSV to JSON and JSON to CSV.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node node_modules/mocha/bin/mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blizarazu/csv-tools.git"
+  },
+  "keywords": [
+    "csv",
+    "json",
+    "node",
+    "parse",
+    "parser"
+  ],
+  "author": "Beñat Lizarazu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/blizarazu/csv-tools/issues"
+  },
+  "homepage": "https://github.com/blizarazu/csv-tools#readme",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^3.0.2"
+  }
+}
