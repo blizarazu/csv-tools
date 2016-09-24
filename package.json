@@ -17,7 +17,7 @@
     "parse",
     "parser"
   ],
-  "author": "Beñat Lizarazu",
+  "author": "Beñat Lizarazu <blizarazu.devel@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/blizarazu/csv-tools/issues"
