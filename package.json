@@ -1,6 +1,6 @@
 {
   "name": "csv-tools",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Convert CSV to JSON and JSON to CSV.",
   "main": "index.js",
   "scripts": {
