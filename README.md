@@ -6,9 +6,9 @@ Node module to convert CSV to JSON and JSON to CSV.
 CSV Tools does a great job exporting and importing data. Javascript objects can easily be exported to CSV, a format that non-programmers can easily understand and modify. On the other hand, CSV data can be imported into your appliation using CSV Tools and easily use that data as JSON objects.
 
 This libraries provides 3 methods:
-- [__toJSON(csvData[, delimiter])__](#convert-csv-string-to-json): Converts csvData to JSON.
-- [__fileToJSON(csvFilePath[, delimiter], callback)__](#convert-csv-file-to-json): Converts the content of the file in csvFilePath and calls the callback function and passes the resulting JSON as an argument of the callback.
-- [__fromJSON(jsonArray[, delimiter])__](#convert-json-to-csv): Converts JSON to CSV.
+- [__toJSON(csvData[, delimiter])__](#csvtojsoncsvdata-delimiter): Converts csvData to JSON.
+- [__fileToJSON(csvFilePath[, delimiter], callback)__](#csvfiletojsoncsvfilepath-delimiter-callback): Converts the content of the file in csvFilePath and calls the callback function and passes the resulting JSON as an argument of the callback.
+- [__fromJSON(jsonArray[, delimiter])__](#csvfromjsonjsonarray-delimiter): Converts JSON to CSV.
 
 ## CSV to JSON
 CSV Tools can parse any CSV file or string to an array of JSONs. The CVS's first row must contain the headers and the JSON properties will be named as the header for the corresponding column.
