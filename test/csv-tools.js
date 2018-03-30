@@ -31,6 +31,34 @@ describe("CSV Tools", function() {
     });
   });
 
+  describe('Parse CSV using semicolon (;) as deilimiter to JSON', function() {
+    var testCsv, exportedJson, json;
+    before(function(done) {
+      testCsv = 'first_name; last name\n"Lois";"Rivera"';
+      expectedJson = JSON.parse('[{"first_name": "Lois","last name": "Rivera"}]');
+      json = csv.toJSON(testCsv, ';');
+      done();
+    });
+    it("should be an array with one JSON object", function(done) {
+      expect(json).to.be.an('array');
+      expect(json).to.have.length('1');
+      expect(json[0]).to.be.an('object');
+      done();
+    });
+    it("should have a first_name property with value Lois", function(done) {
+      expect(json[0]).to.have.property('first_name').to.be.a('string').and.equal('Lois');
+      done();
+    });
+    it("should correctly trim spaces in headers", function(done) {
+      expect(json[0]).to.have.property('last name').to.be.a('string').and.equal('Rivera');
+      done();
+    });
+    it("should convert the CSV to JSON", function(done) {
+      expect(json).to.deep.equal(expectedJson);
+      done();
+    });
+  });
+
   describe("Parse CSV with numbers", function() {
     var testCsv, json;
     before(function(done) {
@@ -175,6 +203,21 @@ describe("CSV Tools", function() {
     });
   });
 
+  describe("CSV file using semicolon (;) as deilimiter to JSON", function() {
+    var testCsvFile, expectedJson;
+    before(function(done) {
+      testCsvFile = __dirname + "/data/test_semicolon.csv";
+      expectedJson = JSON.parse('[{"a":1,"b":2,"c":3,"d":4,"e":5,"f":{"a":6,"b":7,"c":{"a":8,"b":9}},"g":{"a":{"b":{"c":0}}}},{"a":11,"b":12,"c":13,"d":14,"e":15,"f":{"a":16,"b":17,"c":{"b":19}},"g":{"a":{"b":{"c":10}}}},{"a":21,"b":22,"c":23,"d":24,"e":25,"f":{"a":26,"b":27,"c":{"a":28}},"g":{"a":{"b":{"c":20}}}},{"a":31,"b":32,"c":33,"d":34,"e":35,"f":{"a":36,"b":37,"c":{"a":38,"b":39}}},{"a":41,"c":43,"d":44,"e":45,"f":{"a":46,"b":47,"c":{"a":48,"b":49}},"g":{"a":{"b":{"c":40}}}},{"b":52,"c":53,"d":54,"e":55,"f":{"a":56,"b":57,"c":{"a":58,"b":59}},"g":{"a":{"b":{"c":50}}}}]');
+      done();
+    });
+    it("should convert a CSV file to JSON", function(done) {
+      csv.fileToJSON(testCsvFile, ';', function(json) {
+        expect(json).to.deep.equal(expectedJson);
+        done();
+      });
+    });
+  });
+
   describe("JSON to CSV", function() {
     var testJson, expectedCSV;
     before(function(done) {
@@ -184,6 +227,20 @@ describe("CSV Tools", function() {
     });
     it("should convert a JSON to CSV", function(done) {
       var parsedCsv = csv.fromJSON(testJson);
+      expect(parsedCsv).to.deep.equal(expectedCSV);
+      done();
+    });
+  });
+
+  describe("JSON to CSV using semicolon (;) as delimiter", function() {
+    var testJson, expectedCSV;
+    before(function(done) {
+      testJson = JSON.parse('[{"a":1,"b":2,"c":3,"d":4,"f":{"a":6,"b":7},"g":{"a":{"b":{"c":0}}}},{"a":11,"c":13,"d":14,"e":15,"f":{"b":17},"g":{"a":{"b":{"c":10}}}},{"a":21,"b":22,"c":23,"d":24,"e":25,"f":{"a":26,"b":27},"g":{"a":{"b":{"c":20}}}},{"b":32,"c":33,"d":34,"e":35,"f":{"a":36,"b":37},"g":{"a":{"b":{"c":30}}}},{"c":43,"d":44,"f":{"a":46,"b":47}}]');
+      expectedCSV = 'a;b;c;d;f.a;f.b;g.a.b.c;e\n1;2;3;4;6;7;0;\n11;;13;14;;17;10;15\n21;22;23;24;26;27;20;25\n;32;33;34;36;37;30;35\n;;43;44;46;47;;';
+      done();
+    });
+    it("should convert a JSON to CSV", function(done) {
+      var parsedCsv = csv.fromJSON(testJson, ';');
       expect(parsedCsv).to.deep.equal(expectedCSV);
       done();
     });
