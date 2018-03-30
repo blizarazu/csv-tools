@@ -6,9 +6,9 @@ Node module to convert CSV to JSON and JSON to CSV.
 CSV Tools does a great job exporting and importing data. Javascript objects can easily be exported to CSV, a format that non-programmers can easily understand and modify. On the other hand, CSV data can be imported into your appliation using CSV Tools and easily use that data as JSON objects.
 
 This libraries provides 3 methods:
-- [__toJSON(csvData)__](#convert-csv-string-to-json): Converts csvData to JSON.
-- [__fileToJSON(csvFilePath, cb)__](#convert-csv-file-to-json): Converts the content of the file in csvFilePath and calls the cb callback function and passes the resulting JSON as an argument of the callback.
-- [__fromJSON(json)__](#convert-json-to-csv): Converts JSON to CSV.
+- [__toJSON(csvData[, delimiter])__](#convert-csv-string-to-json): Converts csvData to JSON.
+- [__fileToJSON(csvFilePath[, delimiter], callback)__](#convert-csv-file-to-json): Converts the content of the file in csvFilePath and calls the callback function and passes the resulting JSON as an argument of the callback.
+- [__fromJSON(jsonArray[, delimiter])__](#convert-json-to-csv): Converts JSON to CSV.
 
 ## CSV to JSON
 CSV Tools can parse any CSV file or string to an array of JSONs. The CVS's first row must contain the headers and the JSON properties will be named as the header for the corresponding column.
@@ -130,7 +130,19 @@ $ npm install csv-tools
 ```
 
 ## Usage
-#### Convert CSV string to JSON
+To use this module:
+```
+var csv = require('csv-tools');
+```
+
+#### csv.toJSON(csvData[, delimiter])
+- `csvData` [&lt;string&gt;]
+- `delimiter` [&lt;string&gt;] __Default:__ `,`
+- Returns: [&lt;Object&gt;] A JSON object with the data in the CVS string
+
+Convert `csvData` to JSON.
+
+`delimiter` refers to the character used to separate CVS columns. Comma (,) by default.
 ```
 var csv = require('csv-tools');
 
@@ -140,7 +152,16 @@ var json = csv.toJSON(csvData);
 
 console.log(JSON.stringify(json, null, 2));
 ```
-#### Convert CSV file to JSON
+
+#### csv.fileToJSON(csvFilePath[, delimiter], callback)
+- `csvFilePath` [&lt;string&gt;]
+- `delimiter` [&lt;string&gt;] __Default:__ `,`
+- `callback` [&lt;Function&gt;]
+ - `data` [&lt;Object&gt;] A JSON object with the data in the CVS file
+
+Convert the CSV file in `csvFilePath` to JSON. The callback gets one argument `(data)` where `data` is a JSON with the data in the CSV file.
+
+`delimiter` refers to the character used to separate CVS columns. Comma (,) by default.
 ```
 var csv = require('csv-tools');
 
@@ -151,7 +172,14 @@ csv.fileToJSON(file, function(json) {
 });
 ```
 
-#### Convert JSON to CSV
+#### csv.fromJSON(jsonArray[, delimiter])
+- `jsonArray` [&lt;Array&gt;]
+- `delimiter` [&lt;string&gt;] __Default:__ `,`
+- Returns: [&lt;string&gt;] A string in CVS format
+
+Convert `jsonArray` to CSV.
+
+`delimiter` refers to the character used to separate CVS columns. Comma (,) by default.
 ```
 var csv = require('csv-tools');
 
@@ -172,3 +200,8 @@ var csvData = csv.fromJSON(jsonArray);
 
 console.log(csvData);
 ```
+
+[&lt;string&gt;]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
+[&lt;Object&gt;]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
+[&lt;Array&gt;]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
+[&lt;Function&gt;]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
