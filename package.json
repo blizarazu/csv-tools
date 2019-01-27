@@ -2,9 +2,11 @@
   "name": "csv-tools",
   "version": "1.1.1",
   "description": "Convert CSV to JSON and JSON to CSV.",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "mocha"
+    "test": "nyc mocha --opts test/mocha.opts",
+    "build": "tsc -p tsconfig.json",
+    "build:test": "tsc -p ./tsconfig.test.json"
   },
   "repository": {
     "type": "git",
@@ -24,7 +26,30 @@
   },
   "homepage": "https://github.com/blizarazu/csv-tools#readme",
   "devDependencies": {
-    "chai": "^4.1.2",
-    "mocha": "^5.0.5"
+    "chai": "^4.2.0",
+    "mocha": "^5.2.0",
+    "@types/chai": "^4.1.7",
+    "@types/mocha": "^5.2.5",
+    "@types/node": "^10.12.18",
+    "nyc": "^13.1.0",
+    "source-map-support": "^0.5.10",
+    "ts-node": "^8.0.2",
+    "typescript": "^3.2.4"
+  },
+  "nyc": {
+    "extension": [
+      ".ts",
+      ".tsx"
+    ],
+    "exclude": [
+      "**/*.d.ts",
+      "dist",
+      "coverage",
+      "test/**/"
+    ],
+    "reporter": [
+      "html"
+    ],
+    "all": true
   }
 }
