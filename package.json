@@ -4,7 +4,8 @@
   "description": "Convert CSV to JSON and JSON to CSV.",
   "main": "dist/index.js",
   "scripts": {
-    "test": "nyc mocha --opts test/mocha.opts",
+    "test": "mocha --opts test/mocha.opts",
+    "test:coverage": "nyc mocha --opts test/mocha.opts",
     "build": "tsc -p tsconfig.json",
     "build:test": "tsc -p ./tsconfig.test.json"
   },
