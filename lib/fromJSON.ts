@@ -1,8 +1,6 @@
-export function jsonArrayToCsv(jsonArray: any[], delimiter?: string): string {
+export function jsonArrayToCsv(jsonArray: any[], delimiter: string = ','): string {
   if (!jsonArray || jsonArray.length <= 0)
     throw new Error("The array must contain at least one JSON object");
-
-  delimiter = delimiter || ',';
 
   const data: any[] = [];
   const headers = [];

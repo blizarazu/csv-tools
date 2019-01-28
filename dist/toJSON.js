@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 function csvToJson(csv, delimiter) {
-    delimiter = delimiter || ',';
+    if (delimiter === void 0) { delimiter = ','; }
     var data = [];
     var rows = csv.split('\n');
     if (rows.length <= 1)

@@ -1,9 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 function jsonArrayToCsv(jsonArray, delimiter) {
+    if (delimiter === void 0) { delimiter = ','; }
     if (!jsonArray || jsonArray.length <= 0)
         throw new Error("The array must contain at least one JSON object");
-    delimiter = delimiter || ',';
     var data = [];
     var headers = [];
     for (var i in jsonArray) {

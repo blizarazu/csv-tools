@@ -1,6 +1,4 @@
-export function csvToJson(csv: string, delimiter?: string): any[] {
-  delimiter = delimiter || ',';
-
+export function csvToJson(csv: string, delimiter: string = ','): any[] {
   const data = [];
   const rows = csv.split('\n');
   if (rows.length <= 1)
