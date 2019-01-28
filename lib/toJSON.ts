@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-
 export function csvToJson(csv: string, delimiter?: string): any[] {
   delimiter = delimiter || ',';
 
@@ -69,17 +67,4 @@ function convertData(data: string) {
 
 function removeQuotes(value: string): string {
   return value.replace(/^"(.*)"$/, '$1'); // Remove leading and trailing quotes
-}
-
-export function csvFileToJson(filePath: string, delimiter?: string) {
-  // If no delimiter was passed, set comma (,) by default
-  delimiter = delimiter || ',';
-
-  return new Promise((resolve, reject) => {
-    fs.readFile(filePath, "utf8", function (err, csv) {
-      if (err) return reject(err);
-
-      return resolve(csvToJson(csv, delimiter));
-    });
-  });
 }

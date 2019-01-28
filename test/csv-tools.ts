@@ -212,44 +212,6 @@ describe("CSV Tools", function () {
     });
   });
 
-  describe("CSV file to JSON", function () {
-    let testCsvFile: string, expectedJson: any;
-    before(function (done) {
-      testCsvFile = __dirname + "/data/test.csv";
-      expectedJson = JSON.parse('[{"a":1,"b":2,"c":3,"d":4,"e":5,"f":{"a":6,"b":7,"c":{"a":8,"b":9}},"g":{"a":{"b":{"c":0}}}},{"a":11,"b":12,"c":13,"d":14,"e":15,"f":{"a":16,"b":17,"c":{"b":19}},"g":{"a":{"b":{"c":10}}}},{"a":21,"b":22,"c":23,"d":24,"e":25,"f":{"a":26,"b":27,"c":{"a":28}},"g":{"a":{"b":{"c":20}}}},{"a":31,"b":32,"c":33,"d":34,"e":35,"f":{"a":36,"b":37,"c":{"a":38,"b":39}}},{"a":41,"c":43,"d":44,"e":45,"f":{"a":46,"b":47,"c":{"a":48,"b":49}},"g":{"a":{"b":{"c":40}}}},{"b":52,"c":53,"d":54,"e":55,"f":{"a":56,"b":57,"c":{"a":58,"b":59}},"g":{"a":{"b":{"c":50}}}}]');
-      done();
-    });
-    it("should convert a CSV file to JSON", function (done) {
-      csv.fileToJSON(testCsvFile)
-        .then(json => {
-          expect(json).to.deep.equal(expectedJson);
-          done();
-        })
-        .catch(error => {
-          throw error;
-        });
-    });
-  });
-
-  describe("CSV file using semicolon (;) as deilimiter to JSON", function () {
-    let testCsvFile: string, expectedJson: any;
-    before(function (done) {
-      testCsvFile = __dirname + "/data/test_semicolon.csv";
-      expectedJson = JSON.parse('[{"a":1,"b":2,"c":3,"d":4,"e":5,"f":{"a":6,"b":7,"c":{"a":8,"b":9}},"g":{"a":{"b":{"c":0}}}},{"a":11,"b":12,"c":13,"d":14,"e":15,"f":{"a":16,"b":17,"c":{"b":19}},"g":{"a":{"b":{"c":10}}}},{"a":21,"b":22,"c":23,"d":24,"e":25,"f":{"a":26,"b":27,"c":{"a":28}},"g":{"a":{"b":{"c":20}}}},{"a":31,"b":32,"c":33,"d":34,"e":35,"f":{"a":36,"b":37,"c":{"a":38,"b":39}}},{"a":41,"c":43,"d":44,"e":45,"f":{"a":46,"b":47,"c":{"a":48,"b":49}},"g":{"a":{"b":{"c":40}}}},{"b":52,"c":53,"d":54,"e":55,"f":{"a":56,"b":57,"c":{"a":58,"b":59}},"g":{"a":{"b":{"c":50}}}}]');
-      done();
-    });
-    it("should convert a CSV file to JSON", function (done) {
-      csv.fileToJSON(testCsvFile, ';')
-        .then(json => {
-          expect(json).to.deep.equal(expectedJson);
-          done();
-        })
-        .catch(error => {
-          throw error;
-        });
-    });
-  });
-
   describe("JSON to CSV", function () {
     let testJson: any[], expectedCSV: string;
     before(function (done) {
