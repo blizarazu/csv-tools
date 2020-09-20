@@ -1,19 +1,35 @@
 export function csvToJson(csv: string, delimiter: string = ','): any[] {
+  if (!csv) throw new Error("Empty CSV");
+
   const data = [];
   const rows = csv.split('\n');
   if (rows.length <= 1)
     throw new Error("File must have at least 2 rows. 1st row contains headers.");
 
   // Split the headers and remove the trailing and leading spaces of each header
-  const headers = rows[0].trim().split(new RegExp(`\\s*${delimiter}\\s*`));
+  const headers = tokenize(rows[0], delimiter);
   for (let i = 1; i < rows.length; i++) {
     if (rows[i].length <= 0) break;
 
-    const values = rows[i].split(delimiter);
+    const values = tokenize(rows[i], delimiter)
     data.push(generateJson(headers, values));
   }
 
   return data;
+}
+
+function tokenize(row: string, delimiter: string): string[] {
+  const regExp = new RegExp(`(?:${delimiter}|\n|^)("(?:(?:"")*[^"]*)*"|[^"${delimiter}\n]*|(?:\n|$))`, "gm");
+  const matches = row.match(regExp);
+  if (!matches) return [];
+
+  if (row[0] === delimiter) matches.unshift("");
+  return matches.map(item => {
+    // Remove leading delimeter if there is
+    item = item[0] === delimiter ? item.slice(1) : item;
+    // Remove leading and trailing whitespaces and replace double quotes by one quote
+    return item.trim().replace(/""/g, '"');
+  });
 }
 
 function generateJson(fields: string[], data: string[]): any {

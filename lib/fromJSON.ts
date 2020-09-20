@@ -18,7 +18,7 @@ export function jsonArrayToCsv(jsonArray: any[], delimiter: string = ','): strin
     }
   }
 
-  let result = headers.join(delimiter) + "\n";
+  let result = headers.map(item => `"${item}"`).join(delimiter) + "\n";
   for (let z = 0; z < data.length; z++) {
     let row = "";
     for (let k = 0; k < headers.length; k++) {
@@ -27,8 +27,10 @@ export function jsonArrayToCsv(jsonArray: any[], delimiter: string = ','): strin
       if (k > 0)
         row += delimiter;
       if (value !== undefined && value !== null) {
-        if (typeof value == "string")
+        if (typeof value == "string") {
+          value = value.replace(/"/g, '""');
           value = `"${value}"`;
+        }
         row += value;
       }
     }

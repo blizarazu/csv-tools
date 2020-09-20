@@ -212,11 +212,50 @@ describe("CSV Tools", function () {
     });
   });
 
+  describe("CSV with commas in a string to JSON", function () {
+    let testCsv: string, expectedJson: any[];
+    before(function (done) {
+      testCsv = '"department","workers"\n"Legal","Lucius Pannett,Lenora Skuce,Wat Beckhouse,Karyn Thebes,Flossy Bigrigg"\n"Sales","Arlee Sowerby,Lion Gledhall,Geneva Anselmi,Bevan Groll,Freddy Thirsk"\n';
+      expectedJson = JSON.parse('[{"department": "Legal","workers": "Lucius Pannett,Lenora Skuce,Wat Beckhouse,Karyn Thebes,Flossy Bigrigg"},{"department": "Sales","workers": "Arlee Sowerby,Lion Gledhall,Geneva Anselmi,Bevan Groll,Freddy Thirsk"}]');
+      done();
+    });
+    it("should convert a complex CSV with quotes and commas in a string to JSON", function (done) {
+      const json = csv.toJSON(testCsv);
+      expect(json).to.deep.equal(expectedJson);
+      done();
+    });
+  });
+
+  describe("CSV with quotes and commas in a string to JSON", function () {
+    let testCsv: string, expectedJson: any[];
+    before(function (done) {
+      testCsv = '"maker","model","size"\n"Dodge","Dakota","length: 218.8"", height:68.2"""\n"Dodge","Grand Caravan","length: 202.8"", height:68.9"""\n';
+      expectedJson = JSON.parse('[{"maker": "Dodge", "model": "Dakota", "size": "length: 218.8\\", height:68.2\\""},{"maker": "Dodge", "model": "Grand Caravan", "size": "length: 202.8\\", height:68.9\\""}]');
+      done();
+    });
+    it("should convert a complex CSV with quotes and commas in a string to JSON", function (done) {
+      const json = csv.toJSON(testCsv);
+      expect(json).to.deep.equal(expectedJson);
+      done();
+    });
+  });
+
+  describe("Throw an error when the CSV is wrong", function () {
+    it('should throw "File must have at least 2 rows. 1st row contains headers." error when it only has one row', function (done) {
+      expect(() => { csv.toJSON('a,b,c'); }).to.throw('File must have at least 2 rows. 1st row contains headers.');
+      done();
+    });
+    it('should throw "Empty CSV" error when the string is empty', function (done) {
+      expect(() => { csv.toJSON('') }).to.throw('Empty CSV');
+      done();
+    });
+  });
+
   describe("JSON to CSV", function () {
     let testJson: any[], expectedCSV: string;
     before(function (done) {
       testJson = JSON.parse('[{"a":1,"b":2,"c":3,"d":4,"f":{"a":6,"b":7},"g":{"a":{"b":{"c":0}}}},{"a":11,"c":13,"d":14,"e":15,"f":{"b":17},"g":{"a":{"b":{"c":10}}}},{"a":21,"b":22,"c":23,"d":24,"e":25,"f":{"a":26,"b":27},"g":{"a":{"b":{"c":20}}}},{"b":32,"c":33,"d":34,"e":35,"f":{"a":36,"b":37},"g":{"a":{"b":{"c":30}}}},{"c":43,"d":44,"f":{"a":46,"b":47}}]');
-      expectedCSV = 'a,b,c,d,f.a,f.b,g.a.b.c,e\n1,2,3,4,6,7,0,\n11,,13,14,,17,10,15\n21,22,23,24,26,27,20,25\n,32,33,34,36,37,30,35\n,,43,44,46,47,,';
+      expectedCSV = '"a","b","c","d","f.a","f.b","g.a.b.c","e"\n1,2,3,4,6,7,0,\n11,,13,14,,17,10,15\n21,22,23,24,26,27,20,25\n,32,33,34,36,37,30,35\n,,43,44,46,47,,';
       done();
     });
     it("should convert a JSON to CSV", function (done) {
@@ -230,12 +269,47 @@ describe("CSV Tools", function () {
     let testJson: any[], expectedCSV: string;
     before(function (done) {
       testJson = JSON.parse('[{"a":1,"b":2,"c":3,"d":4,"f":{"a":6,"b":7},"g":{"a":{"b":{"c":0}}}},{"a":11,"c":13,"d":14,"e":15,"f":{"b":17},"g":{"a":{"b":{"c":10}}}},{"a":21,"b":22,"c":23,"d":24,"e":25,"f":{"a":26,"b":27},"g":{"a":{"b":{"c":20}}}},{"b":32,"c":33,"d":34,"e":35,"f":{"a":36,"b":37},"g":{"a":{"b":{"c":30}}}},{"c":43,"d":44,"f":{"a":46,"b":47}}]');
-      expectedCSV = 'a;b;c;d;f.a;f.b;g.a.b.c;e\n1;2;3;4;6;7;0;\n11;;13;14;;17;10;15\n21;22;23;24;26;27;20;25\n;32;33;34;36;37;30;35\n;;43;44;46;47;;';
+      expectedCSV = '"a";"b";"c";"d";"f.a";"f.b";"g.a.b.c";"e"\n1;2;3;4;6;7;0;\n11;;13;14;;17;10;15\n21;22;23;24;26;27;20;25\n;32;33;34;36;37;30;35\n;;43;44;46;47;;';
       done();
     });
     it("should convert a JSON to CSV", function (done) {
       const parsedCsv = csv.fromJSON(testJson, ';');
       expect(parsedCsv).to.deep.equal(expectedCSV);
+      done();
+    });
+  });
+
+  describe("JSON to CSV with commas in a string", function () {
+    let testJson: any[], expectedCSV: string;
+    before(function (done) {
+      testJson = JSON.parse('[{"department": "Legal","workers": "Lucius Pannett,Lenora Skuce,Wat Beckhouse,Karyn Thebes,Flossy Bigrigg"},{"department": "Sales","workers": "Arlee Sowerby,Lion Gledhall,Geneva Anselmi,Bevan Groll,Freddy Thirsk"}]');
+      expectedCSV = '"department","workers"\n"Legal","Lucius Pannett,Lenora Skuce,Wat Beckhouse,Karyn Thebes,Flossy Bigrigg"\n"Sales","Arlee Sowerby,Lion Gledhall,Geneva Anselmi,Bevan Groll,Freddy Thirsk"';
+      done();
+    });
+    it("should convert JSON to CSV", function (done) {
+      const json = csv.fromJSON(testJson);
+      expect(json).to.deep.equal(expectedCSV);
+      done();
+    });
+  });
+
+  describe("JSON to CSV with quotes and commas in a string", function () {
+    let testJson: any[], expectedCSV: string;
+    before(function (done) {
+      testJson = JSON.parse('[{"maker": "Dodge", "model": "Dakota", "size": "length: 218.8\\", height:68.2\\""},{"maker": "Dodge", "model": "Grand Caravan", "size": "length: 202.8\\", height:68.9\\""}]');
+      expectedCSV = '"maker","model","size"\n"Dodge","Dakota","length: 218.8"", height:68.2"""\n"Dodge","Grand Caravan","length: 202.8"", height:68.9"""';
+      done();
+    });
+    it("should convert JSON to CSV", function (done) {
+      const json = csv.fromJSON(testJson);
+      expect(json).to.deep.equal(expectedCSV);
+      done();
+    });
+  });
+
+  describe("Throw an error when the JSON is wrong", function () {
+    it('should throw "The array must contain at least one JSON object" error', function (done) {
+      expect(() => { csv.fromJSON([]); }).to.throw('The array must contain at least one JSON object');
       done();
     });
   });
