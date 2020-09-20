@@ -1,0 +1,13 @@
+extension:
+  - .ts
+  - .tsx
+exclude:
+  - "**/*.d.ts"
+  - dist
+  - examples
+  - coverage
+  - test/**/
+reporter:
+  - text
+  - html
+all: true
