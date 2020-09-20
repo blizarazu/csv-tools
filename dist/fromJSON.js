@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.jsonArrayToCsv = void 0;
 function jsonArrayToCsv(jsonArray, delimiter) {
     if (delimiter === void 0) { delimiter = ','; }
     if (!jsonArray || jsonArray.length <= 0)
@@ -19,7 +20,7 @@ function jsonArrayToCsv(jsonArray, delimiter) {
             }
         }
     }
-    var result = headers.join(delimiter) + "\n";
+    var result = headers.map(function (item) { return "\"" + item + "\""; }).join(delimiter) + "\n";
     for (var z = 0; z < data.length; z++) {
         var row = "";
         for (var k = 0; k < headers.length; k++) {
@@ -28,8 +29,10 @@ function jsonArrayToCsv(jsonArray, delimiter) {
             if (k > 0)
                 row += delimiter;
             if (value !== undefined && value !== null) {
-                if (typeof value == "string")
+                if (typeof value == "string") {
+                    value = value.replace(/"/g, '""');
                     value = "\"" + value + "\"";
+                }
                 row += value;
             }
         }

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.fromJSON = exports.toJSON = void 0;
 var toJSON_1 = require("./toJSON");
-exports.toJSON = toJSON_1.csvToJson;
+Object.defineProperty(exports, "toJSON", { enumerable: true, get: function () { return toJSON_1.csvToJson; } });
 var fromJSON_1 = require("./fromJSON");
-exports.fromJSON = fromJSON_1.jsonArrayToCsv;
+Object.defineProperty(exports, "fromJSON", { enumerable: true, get: function () { return fromJSON_1.jsonArrayToCsv; } });
