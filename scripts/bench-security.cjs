@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 /**
  * Benchmark toJSON / fromJSON for security-hardening comparison.
- * Usage: node scripts/bench-security.mjs [label]
+ * Usage: CSV_TOOLS_DIST=/path/to/dist node scripts/bench-security.cjs [label]
  */
-const { toJSON, fromJSON } = require('../dist');
+const path = require('path');
+const distPath = process.env.CSV_TOOLS_DIST
+  ? path.resolve(process.env.CSV_TOOLS_DIST)
+  : path.join(__dirname, '..', 'dist');
+const { toJSON, fromJSON } = require(distPath);
 
 const label = process.argv[2] || 'run';
 const ITER = 200;

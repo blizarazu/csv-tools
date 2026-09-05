@@ -9,111 +9,138 @@ export function csvToJson(csv: string, delimiter: string = ','): any[] {
   if (rows.length <= 1)
     throw new Error("File must have at least 2 rows. 1st row contains headers.");
 
-  // Split the headers and remove the trailing and leading spaces of each header
-  const headers = tokenize(rows[0], delimiter);
+  const headerTokens = tokenize(rows[0], delimiter);
+  const compiledHeaders = compileHeaders(headerTokens.values);
+
   for (let i = 1; i < rows.length; i++) {
     if (rows[i].length <= 0) break;
 
-    const values = tokenize(rows[i], delimiter)
-    data.push(generateJson(headers, values));
+    const rowTokens = tokenize(rows[i], delimiter);
+    data.push(generateJson(compiledHeaders, rowTokens.values, rowTokens.quoted));
   }
 
   return data;
 }
 
-function tokenize(row: string, delimiter: string): string[] {
-  const fields: string[] = [];
+interface TokenizeResult {
+  values: string[];
+  quoted: boolean[];
+}
+
+function tokenize(row: string, delimiter: string): TokenizeResult {
+  const values: string[] = [];
+  const quoted: boolean[] = [];
   let i = 0;
   const n = row.length;
 
   while (i < n) {
     if (row[i] === '"') {
-      let value = '"';
-      i++;
+      i++; // skip opening quote
+      let start = i;
+      let out = '';
+      let closed = false;
       while (i < n) {
         if (row[i] === '"') {
           if (i + 1 < n && row[i + 1] === '"') {
-            value += '""';
+            out += row.slice(start, i) + '"';
             i += 2;
+            start = i;
             continue;
           }
-          value += '"';
+          out += row.slice(start, i);
           i++;
+          closed = true;
           break;
         }
-        value += row[i];
         i++;
       }
+      if (!closed) {
+        out += row.slice(start, i);
+      }
       while (i < n && row[i] !== delimiter) i++;
-      fields.push(value.trim().replace(/""/g, '"'));
+      values.push(out.trim());
+      quoted.push(true);
       if (i < n && row[i] === delimiter) i++;
     } else {
       const start = i;
       while (i < n && row[i] !== delimiter) i++;
-      fields.push(row.slice(start, i).trim().replace(/""/g, '"'));
+      values.push(row.slice(start, i).trim());
+      quoted.push(false);
       if (i < n && row[i] === delimiter) i++;
     }
   }
 
   if (n > 0 && row[n - 1] === delimiter) {
-    fields.push('');
+    values.push('');
+    quoted.push(false);
   }
 
-  return fields;
+  return { values, quoted };
 }
 
-function generateJson(fields: string[], data: string[]): any {
-  if (fields.length <= 0) return;
+/** null = skip this column (dangerous path keys). */
+function compileHeaders(headers: string[]): (string[] | null)[] {
+  const compiled: (string[] | null)[] = new Array(headers.length);
+  for (let i = 0; i < headers.length; i++) {
+    const segments = headers[i].split('.');
+    if (segments.length - 1 >= MAX_NESTING_DEPTH) {
+      throw new Error("Maximum nesting depth exceeded");
+    }
+    let dangerous = false;
+    for (let s = 0; s < segments.length; s++) {
+      if (DANGEROUS_KEYS.has(segments[s])) {
+        dangerous = true;
+        break;
+      }
+    }
+    compiled[i] = dangerous ? null : segments;
+  }
+  return compiled;
+}
+
+function generateJson(
+  compiledHeaders: (string[] | null)[],
+  values: string[],
+  quoted: boolean[]
+): any {
+  if (compiledHeaders.length <= 0) return;
 
   const json: Record<string, any> = Object.create(null);
-  for (let i = 0; i < fields.length; i++) {
-    if (data[i]) {
-      const field = removeQuotes(fields[i]);
-      const value = data[i];
-      recursiveJson(field, value, json, 0);
-    }
+  for (let i = 0; i < compiledHeaders.length; i++) {
+    const segments = compiledHeaders[i];
+    if (!segments || !values[i]) continue;
+    assignPath(json, segments, convertData(values[i], quoted[i]));
   }
   return json;
 }
 
-function recursiveJson(field: string, data: string, json: any, depth: number): any {
-  if (field.length <= 0) return json;
-  if (depth >= MAX_NESTING_DEPTH) {
-    throw new Error("Maximum nesting depth exceeded");
-  }
-
-  const fieldArray = field.split('.');
-  if (fieldArray.length == 1) {
-    const key = fieldArray[0];
-    if (DANGEROUS_KEYS.has(key)) return json;
-    json[key] = convertData(data);
-  } else {
-    const newField = fieldArray.shift();
-    if (newField) {
-      if (DANGEROUS_KEYS.has(newField)) return json;
-      const jsonObj = json[newField] || Object.create(null);
-      json[newField] = recursiveJson(fieldArray.join('.'), data, jsonObj, depth + 1);
+function assignPath(json: any, segments: string[], value: any): void {
+  let current = json;
+  const last = segments.length - 1;
+  for (let i = 0; i < last; i++) {
+    const key = segments[i];
+    let next = current[key];
+    if (!next) {
+      next = Object.create(null);
+      current[key] = next;
     }
+    current = next;
   }
-  return json;
+  current[segments[last]] = value;
 }
 
-function convertData(data: string) {
+function convertData(data: string, wasQuoted: boolean) {
+  if (wasQuoted) {
+    // Quoted cells stay strings (e.g. "404", "true").
+    return data;
+  }
   if (!isNaN(Number(data))) {
-    // If the data is numeric, return the data converted to number.
     return +data;
   } else if (data === 'true') {
-    //  Else return a boolean true if the value is true without quotes
     return true;
   } else if (data === 'false') {
-    // or false if the value is false without quotes
     return false;
   } else {
-    // Else return a string without the extra quotes.
-    return removeQuotes(data);
+    return data;
   }
-}
-
-function removeQuotes(value: string): string {
-  return value.replace(/^"(.*)"$/, '$1'); // Remove leading and trailing quotes
 }
