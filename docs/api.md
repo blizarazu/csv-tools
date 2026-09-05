@@ -23,10 +23,12 @@ Converts a CSV string into an array of objects.
 
 - `Error("Empty CSV")` if `csvData` is falsy.
 - `Error("File must have at least 2 rows. 1st row contains headers.")` if there is not at least one header row and one data row.
+- `Error("Maximum nesting depth exceeded")` if a dotted header is deeper than 100 levels.
 
 **Notes:**
 
 - Header names are trimmed; dotted names create nested objects.
+- Path segments `__proto__`, `prototype`, and `constructor` are ignored (prototype-pollution guard).
 - See [architecture.md](architecture.md) for tokenization and type coercion rules.
 
 ```js
@@ -51,12 +53,15 @@ Converts an array of objects into a CSV string.
 **Throws:**
 
 - `Error("The array must contain at least one JSON object")` if the array is missing or empty.
+- `Error("Circular reference detected")` if an object graph contains a cycle.
+- `Error("Maximum nesting depth exceeded")` if nesting is deeper than 100 levels.
 
 **Notes:**
 
 - Nested objects become dotted headers.
-- Headers are always quoted in the output header line.
+- Headers are always quoted in the output header line; `"` inside header names is escaped as `""`.
 - Objects missing a header produce an empty cell for that column.
+- String values starting with `=`, `+`, `-`, or `@` are prefixed with `'` (spreadsheet formula guard).
 
 ```js
 csv.fromJSON([

@@ -313,4 +313,81 @@ describe("CSV Tools", function () {
       done();
     });
   });
+
+  describe("Security: prototype pollution", function () {
+    afterEach(function () {
+      delete (Object.prototype as any).polluted;
+      delete (Object.prototype as any).hacked;
+    });
+
+    it("should not pollute Object.prototype via __proto__ headers", function () {
+      const result = csv.toJSON("__proto__.polluted,safe\ntrue,1");
+      expect(({} as any).polluted).to.equal(undefined);
+      expect(result[0]).to.have.property("safe").that.equals(1);
+      expect(result[0]).to.not.have.property("polluted");
+    });
+
+    it("should not pollute via constructor.prototype headers", function () {
+      expect(() => csv.toJSON("constructor.prototype.hacked,safe\nyes,1")).to.not.throw();
+      expect(({} as any).hacked).to.equal(undefined);
+      const result = csv.toJSON("constructor.prototype.hacked,safe\nyes,1");
+      expect(result[0]).to.have.property("safe").that.equals(1);
+    });
+  });
+
+  describe("Security: tokenizer hardening", function () {
+    it("should parse with regex-special delimiter without throwing", function () {
+      const result = csv.toJSON("a*b\n1*2", "*");
+      expect(result).to.deep.equal([{ a: 1, b: 2 }]);
+    });
+
+    it("should finish quickly on unclosed quotes (no ReDoS)", function () {
+      this.timeout(2000);
+      const payload = '"' + "a".repeat(20000);
+      const start = Date.now();
+      csv.toJSON("h\n" + payload);
+      expect(Date.now() - start).to.be.below(1500);
+    });
+  });
+
+  describe("Security: nesting limits", function () {
+    it("should reject CSV paths deeper than the max depth", function () {
+      const depth = 101;
+      const header = Array.from({ length: depth }, (_, i) => "x" + i).join(".");
+      expect(() => csv.toJSON(header + "\n1")).to.throw("Maximum nesting depth exceeded");
+    });
+
+    it("should reject circular references in fromJSON", function () {
+      const obj: any = { a: 1 };
+      obj.self = obj;
+      expect(() => csv.fromJSON([obj])).to.throw("Circular reference detected");
+    });
+
+    it("should reject JSON nesting deeper than the max depth", function () {
+      let obj: any = { v: 1 };
+      for (let i = 0; i < 101; i++) {
+        obj = { n: obj };
+      }
+      expect(() => csv.fromJSON([obj])).to.throw("Maximum nesting depth exceeded");
+    });
+  });
+
+  describe("Security: CSV injection and header escaping", function () {
+    it("should prefix formula-like string values with a single quote", function () {
+      const csvOut = csv.fromJSON([{ cmd: "=1+1", plus: "+cmd", at: "@SUM(1)", dash: "-1+1" }]);
+      expect(csvOut).to.equal('"cmd","plus","at","dash"\n"\'=1+1","\'+cmd","\'@SUM(1)","\'-1+1"');
+    });
+
+    it("should escape double quotes inside header names", function () {
+      const row: any = {};
+      row['a"b'] = 1;
+      const csvOut = csv.fromJSON([row]);
+      expect(csvOut).to.equal('"a""b"\n1');
+    });
+
+    it("should treat null as an empty cell without throwing", function () {
+      const csvOut = csv.fromJSON([{ a: null, b: 2 }]);
+      expect(csvOut).to.equal('"a","b"\n,2');
+    });
+  });
 });

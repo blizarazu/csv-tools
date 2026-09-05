@@ -21,26 +21,28 @@ Build target is ES5 CommonJS (`tsconfig.json`), with declarations written to `di
 
 1. Reject empty input.
 2. Split on newlines; require at least a header row and one data row.
-3. Tokenize the header row and each data row with a delimiter-aware regex that understands quoted fields and escaped quotes (`""`).
+3. Tokenize the header row and each data row with a linear, delimiter-literal parser that understands quoted fields and escaped quotes (`""`) — the delimiter is never interpolated into a `RegExp`.
 4. Trim tokens; collapse `""` to `"`.
 5. For each data row, build an object by walking header names. Headers containing `.` create nested objects via recursive assignment.
-6. Coerce cell values:
+6. Reject path segments named `__proto__`, `prototype`, or `constructor`, and reject nesting deeper than 100 levels (`Maximum nesting depth exceeded`).
+7. Coerce cell values:
    - numeric strings → `number`
    - `true` / `false` (exact, unquoted after processing) → `boolean`
    - otherwise → string with surrounding quotes removed when present
-7. Stop at the first empty line (row length ≤ 0).
+8. Stop at the first empty line (row length ≤ 0).
 
 Empty cells do not set a property on the object for that header.
 
 ## JSON → CSV (`fromJSON`)
 
 1. Reject missing/empty arrays.
-2. Walk each object depth-first. Leaf values contribute a dotted header path (`name.first`) and a per-row value map.
-3. Collect the union of headers across all objects (order follows first appearance).
-4. Emit a header line with each header quoted, joined by the delimiter.
-5. Emit data rows: missing keys become empty fields; strings are quoted and internal `"` doubled; numbers/booleans are written without extra quotes.
+2. Walk each object depth-first using own keys only (`Object.keys`). Leaf values contribute a dotted header path (`name.first`) and a per-row value map.
+3. Skip dangerous keys (`__proto__`, `prototype`, `constructor`); reject circular references and nesting deeper than 100 levels.
+4. Collect the union of headers across all objects (order follows first appearance).
+5. Emit a header line with each header quoted (internal `"` doubled), joined by the delimiter.
+6. Emit data rows: missing keys become empty fields; strings are quoted and internal `"` doubled; strings starting with `=`, `+`, `-`, or `@` are prefixed with `'` to reduce spreadsheet formula injection; numbers/booleans are written without extra quotes. `null` becomes an empty cell.
 
-Nested plain objects are flattened. Non-object leaves (including arrays treated as objects in the recursion path) follow the same `typeof !== "object"` leaf rule used in source—prefer plain JSON objects and scalars for predictable output.
+Nested plain objects are flattened. Arrays are walked as objects (index keys become path segments). Prefer plain JSON objects and scalars for predictable output.
 
 ## Design notes
 

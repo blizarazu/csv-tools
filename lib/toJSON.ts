@@ -1,3 +1,6 @@
+const MAX_NESTING_DEPTH = 100;
+const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
 export function csvToJson(csv: string, delimiter: string = ','): any[] {
   if (!csv) throw new Error("Empty CSV");
 
@@ -19,45 +22,77 @@ export function csvToJson(csv: string, delimiter: string = ','): any[] {
 }
 
 function tokenize(row: string, delimiter: string): string[] {
-  const regExp = new RegExp(`(?:${delimiter}|\n|^)("(?:(?:"")*[^"]*)*"|[^"${delimiter}\n]*|(?:\n|$))`, "gm");
-  const matches = row.match(regExp);
-  if (!matches) return [];
+  const fields: string[] = [];
+  let i = 0;
+  const n = row.length;
 
-  if (row[0] === delimiter) matches.unshift("");
-  return matches.map(item => {
-    // Remove leading delimeter if there is
-    item = item[0] === delimiter ? item.slice(1) : item;
-    // Remove leading and trailing whitespaces and replace double quotes by one quote
-    return item.trim().replace(/""/g, '"');
-  });
+  while (i < n) {
+    if (row[i] === '"') {
+      let value = '"';
+      i++;
+      while (i < n) {
+        if (row[i] === '"') {
+          if (i + 1 < n && row[i + 1] === '"') {
+            value += '""';
+            i += 2;
+            continue;
+          }
+          value += '"';
+          i++;
+          break;
+        }
+        value += row[i];
+        i++;
+      }
+      while (i < n && row[i] !== delimiter) i++;
+      fields.push(value.trim().replace(/""/g, '"'));
+      if (i < n && row[i] === delimiter) i++;
+    } else {
+      const start = i;
+      while (i < n && row[i] !== delimiter) i++;
+      fields.push(row.slice(start, i).trim().replace(/""/g, '"'));
+      if (i < n && row[i] === delimiter) i++;
+    }
+  }
+
+  if (n > 0 && row[n - 1] === delimiter) {
+    fields.push('');
+  }
+
+  return fields;
 }
 
 function generateJson(fields: string[], data: string[]): any {
   if (fields.length <= 0) return;
 
-  const json = {};
-  for (const i in fields) {
+  const json: Record<string, any> = Object.create(null);
+  for (let i = 0; i < fields.length; i++) {
     if (data[i]) {
       const field = removeQuotes(fields[i]);
       const value = data[i];
-      recursiveJson(field, value, json);
+      recursiveJson(field, value, json, 0);
     }
   }
   return json;
 }
 
-function recursiveJson(field: string, data: string, json: any): any {
+function recursiveJson(field: string, data: string, json: any, depth: number): any {
   if (field.length <= 0) return json;
+  if (depth >= MAX_NESTING_DEPTH) {
+    throw new Error("Maximum nesting depth exceeded");
+  }
 
   const fieldArray = field.split('.');
   if (fieldArray.length == 1) {
-    // json[fieldArray[0]] = data; // This line saves all data as string
-    json[fieldArray[0]] = convertData(data);
+    const key = fieldArray[0];
+    if (DANGEROUS_KEYS.has(key)) return json;
+    json[key] = convertData(data);
   } else {
     const newField = fieldArray.shift();
     if (newField) {
-      const jsonObj = json[newField] || {};
-      json[newField] = recursiveJson(fieldArray.join('.'), data, jsonObj);
+      if (DANGEROUS_KEYS.has(newField)) return json;
+      const jsonObj = json[newField] || Object.create(null);
+      json[newField] = recursiveJson(fieldArray.join('.'), data, jsonObj, depth + 1);
     }
   }
   return json;
