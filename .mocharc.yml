@@ -1,4 +1,4 @@
 extension: ['ts']
 require:
-  - ts-node/register
+  - tsx/cjs
   - source-map-support/register

@@ -1,33 +1,31 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.csvToJson = void 0;
-function csvToJson(csv, delimiter) {
-    if (delimiter === void 0) { delimiter = ','; }
+exports.csvToJson = csvToJson;
+function csvToJson(csv, delimiter = ',') {
     if (!csv)
         throw new Error("Empty CSV");
-    var data = [];
-    var rows = csv.split('\n');
+    const data = [];
+    const rows = csv.split('\n');
     if (rows.length <= 1)
         throw new Error("File must have at least 2 rows. 1st row contains headers.");
     // Split the headers and remove the trailing and leading spaces of each header
-    var headers = tokenize(rows[0], delimiter);
-    for (var i = 1; i < rows.length; i++) {
+    const headers = tokenize(rows[0], delimiter);
+    for (let i = 1; i < rows.length; i++) {
         if (rows[i].length <= 0)
             break;
-        var values = tokenize(rows[i], delimiter);
+        const values = tokenize(rows[i], delimiter);
         data.push(generateJson(headers, values));
     }
     return data;
 }
-exports.csvToJson = csvToJson;
 function tokenize(row, delimiter) {
-    var regExp = new RegExp("(?:" + delimiter + "|\n|^)(\"(?:(?:\"\")*[^\"]*)*\"|[^\"" + delimiter + "\n]*|(?:\n|$))", "gm");
-    var matches = row.match(regExp);
+    const regExp = new RegExp(`(?:${delimiter}|\n|^)("(?:(?:"")*[^"]*)*"|[^"${delimiter}\n]*|(?:\n|$))`, "gm");
+    const matches = row.match(regExp);
     if (!matches)
         return [];
     if (row[0] === delimiter)
         matches.unshift("");
-    return matches.map(function (item) {
+    return matches.map(item => {
         // Remove leading delimeter if there is
         item = item[0] === delimiter ? item.slice(1) : item;
         // Remove leading and trailing whitespaces and replace double quotes by one quote
@@ -37,11 +35,11 @@ function tokenize(row, delimiter) {
 function generateJson(fields, data) {
     if (fields.length <= 0)
         return;
-    var json = {};
-    for (var i in fields) {
+    const json = {};
+    for (const i in fields) {
         if (data[i]) {
-            var field = removeQuotes(fields[i]);
-            var value = data[i];
+            const field = removeQuotes(fields[i]);
+            const value = data[i];
             recursiveJson(field, value, json);
         }
     }
@@ -50,15 +48,15 @@ function generateJson(fields, data) {
 function recursiveJson(field, data, json) {
     if (field.length <= 0)
         return json;
-    var fieldArray = field.split('.');
+    const fieldArray = field.split('.');
     if (fieldArray.length == 1) {
         // json[fieldArray[0]] = data; // This line saves all data as string
         json[fieldArray[0]] = convertData(data);
     }
     else {
-        var newField = fieldArray.shift();
+        const newField = fieldArray.shift();
         if (newField) {
-            var jsonObj = json[newField] || {};
+            const jsonObj = json[newField] || {};
             json[newField] = recursiveJson(fieldArray.join('.'), data, jsonObj);
         }
     }

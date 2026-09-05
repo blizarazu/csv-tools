@@ -1,18 +1,18 @@
 {
     "compilerOptions": {
-        "target": "es5",
-        "module": "commonjs",
+        "target": "es2015",
+        "module": "node16",
         "declaration": true,
+        "rootDir": "./lib",
         "outDir": "./dist",
         "strict": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
-        "moduleResolution": "node",
-        "typeRoots": [
-            "node_modules/@types"
-        ]
+        "moduleResolution": "node16",
+        "esModuleInterop": true,
+        "types": ["node"]
     },
     "include": [
         "lib/**/*"
