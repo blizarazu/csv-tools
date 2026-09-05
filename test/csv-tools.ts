@@ -240,6 +240,14 @@ describe("CSV Tools", function () {
     });
   });
 
+  describe("CSV with multiline quoted cells to JSON", function () {
+    it("should keep newlines inside a quoted cell as part of the string value", function () {
+      const testCsv = 'title,notes\n"Hello","Line1\nLine2"';
+      const json = csv.toJSON(testCsv);
+      expect(json).to.deep.equal([{ title: "Hello", notes: "Line1\nLine2" }]);
+    });
+  });
+
   describe("Throw an error when the CSV is wrong", function () {
     it('should throw "File must have at least 2 rows. 1st row contains headers." error when it only has one row', function (done) {
       expect(() => { csv.toJSON('a,b,c'); }).to.throw('File must have at least 2 rows. 1st row contains headers.');
@@ -304,6 +312,14 @@ describe("CSV Tools", function () {
       const json = csv.fromJSON(testJson);
       expect(json).to.deep.equal(expectedCSV);
       done();
+    });
+  });
+
+  describe("JSON to CSV with multiline string values", function () {
+    it("should quote cells and preserve embedded newlines", function () {
+      const testJson = [{ title: "Hello", notes: "Line1\nLine2" }];
+      const expectedCSV = '"title","notes"\n"Hello","Line1\nLine2"';
+      expect(csv.fromJSON(testJson)).to.equal(expectedCSV);
     });
   });
 

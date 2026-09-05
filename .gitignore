@@ -38,3 +38,7 @@ jspm_packages
 
 # Local benchmark outputs
 bench-results/
+
+# Temporary dist snapshots used by: node scripts/benchmark.cjs --compare
+dist-old/
+dist-new/
