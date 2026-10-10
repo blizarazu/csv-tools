@@ -25,7 +25,7 @@ export function jsonArrayToCsv(jsonArray: any[], delimiter: string = ','): strin
     }
   }
 
-  let result = headers.map(item => `"${String(item).replace(/"/g, '""')}"`).join(delimiter) + "\n";
+  let result = headers.map(item => `"${String(item).replace(/\r\n|\r|\n/g, "\r\n").replace(/"/g, '""')}"`).join(delimiter) + "\r\n";
   for (let z = 0; z < data.length; z++) {
     let row = "";
     for (let k = 0; k < headers.length; k++) {
@@ -38,7 +38,7 @@ export function jsonArrayToCsv(jsonArray: any[], delimiter: string = ','): strin
           if (FORMULA_PREFIX.test(value)) {
             value = "'" + value;
           }
-          value = value.replace(/"/g, '""');
+          value = value.replace(/\r\n|\r|\n/g, "\r\n").replace(/"/g, '""');
           value = `"${value}"`;
         }
         row += value;
@@ -46,7 +46,7 @@ export function jsonArrayToCsv(jsonArray: any[], delimiter: string = ','): strin
     }
     result += row;
     if (z < data.length - 1)
-      result += "\n";
+      result += "\r\n";
   }
 
   return result;
