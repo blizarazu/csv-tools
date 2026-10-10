@@ -8,7 +8,7 @@ const csv = require('csv-tools');
 import * as csv from 'csv-tools';
 ```
 
-## `toJSON(csvData[, delimiter])`
+## `toJSON(csvData[, delimiter][, options])`
 
 Converts a CSV string into an array of objects.
 
@@ -16,6 +16,8 @@ Converts a CSV string into an array of objects.
 |-----------|------|---------|-------------|
 | `csvData` | `string` | — | Full CSV text. First row must be headers. |
 | `delimiter` | `string` | `','` | Column separator. |
+| `options.preserveHeaderSpaces` | `boolean` | `false` | Preserve leading and trailing spaces in header names instead of trimming them. |
+| `options.preserveValueSpaces` | `boolean` | `false` | Preserve leading and trailing spaces in field values instead of trimming them. |
 
 **Returns:** `any[]` — one object per non-empty data row.
 
@@ -27,7 +29,7 @@ Converts a CSV string into an array of objects.
 
 **Notes:**
 
-- Header names are trimmed; dotted names create nested objects.
+- Header names and field values are trimmed by default, which avoids accidental whitespace in JSON property names and values. Set either preservation option to `true` when exact CSV whitespace is needed.
 - Path segments `__proto__`, `prototype`, and `constructor` are ignored (prototype-pollution guard).
 - See [architecture.md](architecture.md) for tokenization and type coercion rules.
 
@@ -37,6 +39,12 @@ csv.toJSON('first,last\n"Ada","Lovelace"');
 
 csv.toJSON('a;b\n1;2', ';');
 // → [{ a: 1, b: 2 }]
+
+csv.toJSON(' name , note \n Ada , hello ', {
+  preserveHeaderSpaces: true,
+  preserveValueSpaces: true,
+});
+// → [{ ' name ': ' Ada ', ' note ': ' hello ' }]
 ```
 
 ## `fromJSON(jsonArray[, delimiter])`
@@ -59,7 +67,7 @@ Converts an array of objects into a CSV string.
 **Notes:**
 
 - Nested objects become dotted headers.
-- Headers are always quoted in the output header line; `"` inside header names is escaped as `""`.
+- Headers are always quoted in the output header line; `"` inside header names is escaped as `""`. Output records use `CRLF` (`\r\n`) line endings.
 - Objects missing a header produce an empty cell for that column.
 - String values starting with `=`, `+`, `-`, or `@` are prefixed with `'` (spreadsheet formula guard).
 

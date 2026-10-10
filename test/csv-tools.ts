@@ -20,7 +20,7 @@ describe("CSV Tools", function () {
       expect(json[0]).to.have.property('first_name').to.be.a('string').and.equal('Lois');
       done();
     });
-    it("should correctly trim spaces in headers", function (done) {
+    it("should trim spaces in headers by default", function (done) {
       expect(json[0]).to.have.property('last name').to.be.a('string').and.equal('Rivera');
       done();
     });
@@ -48,7 +48,7 @@ describe("CSV Tools", function () {
       expect(json[0]).to.have.property('first_name').to.be.a('string').and.equal('Lois');
       done();
     });
-    it("should correctly trim spaces in headers", function (done) {
+    it("should trim spaces in headers by default", function (done) {
       expect(json[0]).to.have.property('last name').to.be.a('string').and.equal('Rivera');
       done();
     });
@@ -248,6 +248,63 @@ describe("CSV Tools", function () {
     });
   });
 
+  describe("RFC 4180 CSV format", function () {
+    it("parses CRLF-delimited records with or without a final CRLF", function () {
+      const withoutFinalBreak = 'name,age\r\nAda,36\r\nGrace,85';
+      const withFinalBreak = withoutFinalBreak + '\r\n';
+      const expected = [{ name: 'Ada', age: 36 }, { name: 'Grace', age: 85 }];
+
+      expect(csv.toJSON(withoutFinalBreak)).to.deep.equal(expected);
+      expect(csv.toJSON(withFinalBreak)).to.deep.equal(expected);
+    });
+
+    it("trims header names and values by default, with independent preservation options", function () {
+      const input = ' first ,last \r\n Ada , Lovelace ';
+
+      expect(csv.toJSON(input)).to.deep.equal([{ first: 'Ada', last: 'Lovelace' }]);
+      expect(csv.toJSON(input, { preserveHeaderSpaces: true }))
+        .to.deep.equal([{ ' first ': 'Ada', 'last ': 'Lovelace' }]);
+      expect(csv.toJSON(input, { preserveValueSpaces: true }))
+        .to.deep.equal([{ first: ' Ada ', last: ' Lovelace ' }]);
+      expect(csv.toJSON(input, { preserveHeaderSpaces: true, preserveValueSpaces: true }))
+        .to.deep.equal([{ ' first ': ' Ada ', 'last ': ' Lovelace ' }]);
+    });
+
+    it("applies preservation options when a custom delimiter is used", function () {
+      const result = csv.toJSON(' name ; note \r\n Ada ; hello ', ';', {
+        preserveHeaderSpaces: true,
+        preserveValueSpaces: true,
+      });
+
+      expect(result).to.deep.equal([{ ' name ': ' Ada ', ' note ': ' hello ' }]);
+    });
+
+    it("parses quoted fields containing commas and escaped double quotes", function () {
+      const result = csv.toJSON('name,note\r\n"Ada, Countess","said ""hello"""');
+      expect(result).to.deep.equal([{ name: 'Ada, Countess', note: 'said "hello"' }]);
+    });
+
+    it("keeps a CRLF inside an escaped field instead of ending the record", function () {
+      const result = csv.toJSON('name,address\r\nAda,"Line one\r\nLine two"');
+      expect(result).to.deep.equal([{ name: 'Ada', address: 'Line one\r\nLine two' }]);
+    });
+
+    it("serializes records and embedded line breaks with CRLF", function () {
+      const result = csv.fromJSON([{ name: 'Ada', note: 'Line one\nLine two' }]);
+      expect(result).to.equal('"name","note"\r\n"Ada","Line one\r\nLine two"');
+    });
+
+    it("normalizes LF, CR, and existing CRLF line breaks in string values", function () {
+      const result = csv.fromJSON([{ lf: 'one\ntwo', cr: 'three\rfour', crlf: 'five\r\nsix' }]);
+      expect(result).to.equal('"lf","cr","crlf"\r\n"one\r\ntwo","three\r\nfour","five\r\nsix"');
+    });
+
+    it("normalizes line breaks in headers before serializing them", function () {
+      const result = csv.fromJSON([{ 'first\nname': 'Ada', 'last\rname': 'Lovelace' }]);
+      expect(result).to.equal('"first\r\nname","last\r\nname"\r\n"Ada","Lovelace"');
+    });
+  });
+
   describe("Throw an error when the CSV is wrong", function () {
     it('should throw "File must have at least 2 rows. 1st row contains headers." error when it only has one row', function (done) {
       expect(() => { csv.toJSON('a,b,c'); }).to.throw('File must have at least 2 rows. 1st row contains headers.');
@@ -268,7 +325,7 @@ describe("CSV Tools", function () {
     });
     it("should convert a JSON to CSV", function (done) {
       const parsedCsv = csv.fromJSON(testJson);
-      expect(parsedCsv).to.deep.equal(expectedCSV);
+      expect(parsedCsv).to.deep.equal(expectedCSV.replace(/\n/g, '\r\n'));
       done();
     });
   });
@@ -282,7 +339,7 @@ describe("CSV Tools", function () {
     });
     it("should convert a JSON to CSV", function (done) {
       const parsedCsv = csv.fromJSON(testJson, ';');
-      expect(parsedCsv).to.deep.equal(expectedCSV);
+      expect(parsedCsv).to.deep.equal(expectedCSV.replace(/\n/g, '\r\n'));
       done();
     });
   });
@@ -296,7 +353,7 @@ describe("CSV Tools", function () {
     });
     it("should convert JSON to CSV", function (done) {
       const json = csv.fromJSON(testJson);
-      expect(json).to.deep.equal(expectedCSV);
+      expect(json).to.deep.equal(expectedCSV.replace(/\n/g, '\r\n'));
       done();
     });
   });
@@ -310,7 +367,7 @@ describe("CSV Tools", function () {
     });
     it("should convert JSON to CSV", function (done) {
       const json = csv.fromJSON(testJson);
-      expect(json).to.deep.equal(expectedCSV);
+      expect(json).to.deep.equal(expectedCSV.replace(/\n/g, '\r\n'));
       done();
     });
   });
@@ -318,7 +375,7 @@ describe("CSV Tools", function () {
   describe("JSON to CSV with multiline string values", function () {
     it("should quote cells and preserve embedded newlines", function () {
       const testJson = [{ title: "Hello", notes: "Line1\nLine2" }];
-      const expectedCSV = '"title","notes"\n"Hello","Line1\nLine2"';
+      const expectedCSV = '"title","notes"\r\n"Hello","Line1\r\nLine2"';
       expect(csv.fromJSON(testJson)).to.equal(expectedCSV);
     });
   });
@@ -391,19 +448,19 @@ describe("CSV Tools", function () {
   describe("Security: CSV injection and header escaping", function () {
     it("should prefix formula-like string values with a single quote", function () {
       const csvOut = csv.fromJSON([{ cmd: "=1+1", plus: "+cmd", at: "@SUM(1)", dash: "-1+1" }]);
-      expect(csvOut).to.equal('"cmd","plus","at","dash"\n"\'=1+1","\'+cmd","\'@SUM(1)","\'-1+1"');
+      expect(csvOut).to.equal('"cmd","plus","at","dash"\r\n"\'=1+1","\'+cmd","\'@SUM(1)","\'-1+1"');
     });
 
     it("should escape double quotes inside header names", function () {
       const row: any = {};
       row['a"b'] = 1;
       const csvOut = csv.fromJSON([row]);
-      expect(csvOut).to.equal('"a""b"\n1');
+      expect(csvOut).to.equal('"a""b"\r\n1');
     });
 
     it("should treat null as an empty cell without throwing", function () {
       const csvOut = csv.fromJSON([{ a: null, b: 2 }]);
-      expect(csvOut).to.equal('"a","b"\n,2');
+      expect(csvOut).to.equal('"a","b"\r\n,2');
     });
   });
 });

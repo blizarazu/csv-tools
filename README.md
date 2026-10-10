@@ -3,15 +3,14 @@ Node module to convert CSV to JSON and JSON to CSV.
 
 [![Build Status](https://travis-ci.org/blizarazu/csv-tools.svg?branch=master)](https://travis-ci.org/blizarazu/csv-tools)
 
-CSV Tools does a great job exporting and importing data. Javascript objects can easily be exported to CSV, a format that non-programmers can easily understand and modify. On the other hand, CSV data can be imported into your appliation using CSV Tools and easily use that data as JSON objects.
+CSV Tools converts CSV text to JavaScript objects and JSON-compatible data back to CSV. Nested object paths use dotted headers, such as `owner.name.first`.
 
-This libraries provides 3 methods:
-- [__toJSON(csvData[, delimiter])__](#csvtojsoncsvdata-delimiter): Converts csvData to JSON.
-- [__fileToJSON(csvFilePath[, delimiter], callback)__](#csvfiletojsoncsvfilepath-delimiter-callback): Converts the content of the file in csvFilePath and calls the callback function and passes the resulting JSON as an argument of the callback.
+This library provides two public methods:
+- [__toJSON(csvData[, delimiter][, options])__](#csvtojsoncsvdata-delimiter-options): Converts csvData to JSON.
 - [__fromJSON(jsonArray[, delimiter])__](#csvfromjsonjsonarray-delimiter): Converts JSON to CSV.
 
 ## CSV to JSON
-CSV Tools can parse any CSV file or string to an array of JSONs. The CVS's first row must contain the headers and the JSON properties will be named as the header for the corresponding column.
+CSV Tools parses CSV text into an array of objects. The CSV's first row must contain headers; each header names the corresponding JSON property.
 
 For example, the following CSV:
 ```
@@ -135,14 +134,18 @@ To use this module:
 var csv = require('csv-tools');
 ```
 
-#### csv.toJSON(csvData[, delimiter])
+#### csv.toJSON(csvData[, delimiter][, options])
 - `csvData` [&lt;string&gt;]
 - `delimiter` [&lt;string&gt;] __Default:__ `,`
-- Returns: [&lt;Object&gt;] A JSON object with the data in the CVS string
+- `options` [&lt;Object&gt;]
+  - `preserveHeaderSpaces` [&lt;boolean&gt;] __Default:__ `false`
+  - `preserveValueSpaces` [&lt;boolean&gt;] __Default:__ `false`
+- Returns: [&lt;Object&gt;] An array of objects with the data in the CSV string
 
 Convert `csvData` to JSON.
 
-`delimiter` refers to the character used to separate CVS columns. Comma (,) by default.
+`delimiter` refers to the character used to separate CSV columns. Comma (,) by default.
+Header names and values are trimmed by default. Use the preservation options to retain their leading and trailing spaces.
 ```
 var csv = require('csv-tools');
 
@@ -153,33 +156,14 @@ var json = csv.toJSON(csvData);
 console.log(JSON.stringify(json, null, 2));
 ```
 
-#### csv.fileToJSON(csvFilePath[, delimiter], callback)
-- `csvFilePath` [&lt;string&gt;]
-- `delimiter` [&lt;string&gt;] __Default:__ `,`
-- `callback` [&lt;Function&gt;]
- - `data` [&lt;Object&gt;] A JSON object with the data in the CVS file
-
-Convert the CSV file in `csvFilePath` to JSON. The callback gets one argument `(data)` where `data` is a JSON with the data in the CSV file.
-
-`delimiter` refers to the character used to separate CVS columns. Comma (,) by default.
-```
-var csv = require('csv-tools');
-
-var file = "data.csv";
-
-csv.fileToJSON(file, function(json) {
-  console.log(JSON.stringify(json,null,2));
-});
-```
-
 #### csv.fromJSON(jsonArray[, delimiter])
 - `jsonArray` [&lt;Array&gt;]
 - `delimiter` [&lt;string&gt;] __Default:__ `,`
-- Returns: [&lt;string&gt;] A string in CVS format
+- Returns: [&lt;string&gt;] A string in CSV format
 
 Convert `jsonArray` to CSV.
 
-`delimiter` refers to the character used to separate CVS columns. Comma (,) by default.
+`delimiter` refers to the character used to separate CSV columns. Comma (,) by default. Output records use `CRLF` (`\r\n`) line endings.
 ```
 var csv = require('csv-tools');
 
@@ -204,4 +188,3 @@ console.log(csvData);
 [&lt;string&gt;]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type
 [&lt;Object&gt;]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object
 [&lt;Array&gt;]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array
-[&lt;Function&gt;]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function
