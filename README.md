@@ -138,14 +138,17 @@ var csv = require('csv-tools');
 - `csvData` [&lt;string&gt;]
 - `delimiter` [&lt;string&gt;] __Default:__ `,`
 - `options` [&lt;Object&gt;]
+  - `delimiter` [&lt;string&gt;] __Default:__ `,` (when options is the second argument)
   - `preserveHeaderSpaces` [&lt;boolean&gt;] __Default:__ `false`
   - `preserveValueSpaces` [&lt;boolean&gt;] __Default:__ `false`
+  - `strict` [&lt;boolean&gt;] __Default:__ `false`
 - Returns: [&lt;Object&gt;] An array of objects with the data in the CSV string
 
 Convert `csvData` to JSON.
 
 `delimiter` refers to the character used to separate CSV columns. Comma (,) by default.
 Header names and values are trimmed by default. Use the preservation options to retain their leading and trailing spaces.
+Set `strict` to `true` to validate RFC 4180 input. Invalid input throws `csv.CsvParseError`, which has `line` and `column` properties; strict mode preserves whitespace.
 ```
 var csv = require('csv-tools');
 
@@ -154,6 +157,8 @@ var csvData = "first_name,last_name,gender\nDennis,Anderson,Male\nPeter,Hicks,Ma
 var json = csv.toJSON(csvData);
 
 console.log(JSON.stringify(json, null, 2));
+
+var strictJson = csv.toJSON('first,last\r\n"Ada","Lovelace"', { strict: true });
 ```
 
 #### csv.fromJSON(jsonArray[, delimiter])

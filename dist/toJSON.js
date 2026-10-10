@@ -1,24 +1,54 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.CsvParseError = void 0;
 exports.csvToJson = csvToJson;
 const MAX_NESTING_DEPTH = 100;
 const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+/**
+ * Error thrown when strict RFC 4180 validation fails.
+ * Includes the line and column where the violation was detected.
+ */
+class CsvParseError extends Error {
+    constructor(message, line, column) {
+        super(`RFC 4180 violation at line ${line}, col ${column}: ${message}`);
+        this.name = 'CsvParseError';
+        this.line = line;
+        this.column = column;
+    }
+}
+exports.CsvParseError = CsvParseError;
 function csvToJson(csv, delimiterOrOptions = ',', options = {}) {
+    var _a, _b;
     if (!csv)
         throw new Error("Empty CSV");
-    const delimiter = typeof delimiterOrOptions === 'string' ? delimiterOrOptions : ',';
     const parseOptions = typeof delimiterOrOptions === 'string' ? options : delimiterOrOptions;
-    const parsed = parseRows(csv, delimiter);
+    const delimiter = typeof delimiterOrOptions === 'string'
+        ? delimiterOrOptions
+        : (_a = parseOptions.delimiter) !== null && _a !== void 0 ? _a : ',';
+    const strict = (_b = parseOptions.strict) !== null && _b !== void 0 ? _b : false;
+    if (strict && delimiter !== ',') {
+        throw new CsvParseError('RFC 4180 requires comma (,) as delimiter', 1, 0);
+    }
+    const parsed = parseRows(csv, delimiter, strict);
     if (parsed.length <= 1)
         throw new Error("File must have at least 2 rows. 1st row contains headers.");
-    const compiledHeaders = compileHeaders(parsed[0].values.map(header => parseOptions.preserveHeaderSpaces ? header : header.trim()));
+    const compiledHeaders = compileHeaders(parsed[0].values.map(header => strict || parseOptions.preserveHeaderSpaces ? header : header.trim()));
+    if (strict) {
+        const expectedFields = parsed[0].values.length;
+        for (let r = 1; r < parsed.length; r++) {
+            const row = parsed[r];
+            if (row.values.length !== expectedFields) {
+                throw new CsvParseError(`Row has ${row.values.length} field(s), expected ${expectedFields}`, row.line, 0);
+            }
+        }
+    }
     const data = [];
     for (let i = 1; i < parsed.length; i++) {
         const row = parsed[i];
-        // skip entirely blank trailing rows
-        if (row.values.length === 1 && row.values[0] === '' && !row.quoted[0])
+        // Lenient mode preserves its historical behavior of stopping at a blank row.
+        if (!strict && row.values.length === 1 && row.values[0] === '' && !row.quoted[0])
             break;
-        const values = parseOptions.preserveValueSpaces
+        const values = strict || parseOptions.preserveValueSpaces
             ? row.values
             : row.values.map(value => value.trim());
         data.push(generateJson(compiledHeaders, values, row.quoted));
@@ -36,12 +66,15 @@ function csvToJson(csv, delimiterOrOptions = ',', options = {}) {
  * every character is visited exactly once, and no intermediate row-string array
  * is allocated, which makes it both correct for multiline cells and faster.
  */
-function parseRows(csv, delimiter) {
+function parseRows(csv, delimiter, strict) {
     const rows = [];
     const n = csv.length;
     let i = 0;
+    let currentLine = 1;
+    let lineStart = 0;
     while (i <= n) {
         // Start a new row
+        const recordLine = currentLine;
         const values = [];
         const quoted = [];
         while (i <= n) {
@@ -52,6 +85,7 @@ function parseRows(csv, delimiter) {
             }
             if (csv[i] === '"') {
                 // --- Quoted cell ---
+                const fieldStartCol = i - lineStart;
                 i++; // skip opening quote
                 let start = i;
                 let out = '';
@@ -70,14 +104,37 @@ function parseRows(csv, delimiter) {
                         closed = true;
                         break;
                     }
+                    if (csv[i] === '\n') {
+                        currentLine++;
+                        lineStart = i + 1;
+                    }
+                    if (strict) {
+                        const code = csv.charCodeAt(i);
+                        const isAllowed = (code >= 0x20 && code <= 0x21)
+                            || (code >= 0x23 && code <= 0x2B)
+                            || (code >= 0x2D && code <= 0x7E)
+                            || csv[i] === ',' || csv[i] === '\r' || csv[i] === '\n';
+                        if (!isAllowed) {
+                            throw new CsvParseError(`Invalid character U+${code.toString(16).toUpperCase().padStart(4, '0')} in quoted field; only TEXTDATA, comma, CR, LF, and escaped double quotes are allowed`, currentLine, i - lineStart);
+                        }
+                    }
                     i++;
                 }
                 if (!closed) {
+                    if (strict) {
+                        throw new CsvParseError('Unclosed double quote in escaped field', currentLine, fieldStartCol);
+                    }
                     out += csv.slice(start, i);
                 }
-                // Skip anything between closing quote and next delimiter / row-end
-                while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r')
-                    i++;
+                if (strict) {
+                    if (i < n && csv[i] !== delimiter && csv[i] !== '\r' && csv[i] !== '\n') {
+                        throw new CsvParseError(`Unexpected character '${csv[i]}' after closing double quote`, currentLine, i - lineStart);
+                    }
+                }
+                else {
+                    while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r')
+                        i++;
+                }
                 values.push(out);
                 quoted.push(true);
             }
@@ -86,7 +143,19 @@ function parseRows(csv, delimiter) {
                 const start = i;
                 while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r')
                     i++;
-                values.push(csv.slice(start, i));
+                const raw = csv.slice(start, i);
+                if (strict) {
+                    for (let j = 0; j < raw.length; j++) {
+                        const code = raw.charCodeAt(j);
+                        const isTextdata = (code >= 0x20 && code <= 0x21)
+                            || (code >= 0x23 && code <= 0x2B)
+                            || (code >= 0x2D && code <= 0x7E);
+                        if (!isTextdata) {
+                            throw new CsvParseError(`Invalid character U+${code.toString(16).toUpperCase().padStart(4, '0')} in unquoted field; only TEXTDATA (%x20-21 / %x23-2B / %x2D-7E) is allowed`, currentLine, (start + j) - lineStart);
+                        }
+                    }
+                }
+                values.push(raw);
                 quoted.push(false);
             }
             // Consume delimiter or row terminator
@@ -105,15 +174,37 @@ function parseRows(csv, delimiter) {
             }
         }
         if (values.length > 0) {
-            rows.push({ values, quoted });
+            rows.push({ values, quoted, line: recordLine });
         }
-        // Advance past \r\n or \n
-        if (i < n && csv[i] === '\r')
-            i++;
-        if (i < n && csv[i] === '\n')
-            i++;
-        else
-            break; // end of string
+        if (i < n) {
+            if (csv[i] === '\r' && i + 1 < n && csv[i + 1] === '\n') {
+                i += 2;
+                currentLine++;
+                lineStart = i;
+            }
+            else if (csv[i] === '\n') {
+                if (strict) {
+                    throw new CsvParseError('Record separator must be CRLF (\\r\\n), found bare LF (\\n)', currentLine, i - lineStart);
+                }
+                i++;
+                currentLine++;
+                lineStart = i;
+            }
+            else if (csv[i] === '\r') {
+                if (strict) {
+                    throw new CsvParseError('Record separator must be CRLF (\\r\\n), found bare CR (\\r)', currentLine, i - lineStart);
+                }
+                i++;
+                currentLine++;
+                lineStart = i;
+            }
+            else {
+                break;
+            }
+        }
+        else {
+            break;
+        }
     }
     return rows;
 }
