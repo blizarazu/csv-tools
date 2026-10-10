@@ -1,21 +1,41 @@
 const MAX_NESTING_DEPTH = 100;
 const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
-export function csvToJson(csv: string, delimiter: string = ','): any[] {
+export interface CsvToJsonOptions {
+  /** Preserve leading and trailing spaces in header names. Defaults to false. */
+  preserveHeaderSpaces?: boolean;
+  /** Preserve leading and trailing spaces in field values. Defaults to false. */
+  preserveValueSpaces?: boolean;
+}
+
+export function csvToJson(csv: string, options?: CsvToJsonOptions): any[];
+export function csvToJson(csv: string, delimiter?: string, options?: CsvToJsonOptions): any[];
+export function csvToJson(
+  csv: string,
+  delimiterOrOptions: string | CsvToJsonOptions = ',',
+  options: CsvToJsonOptions = {}
+): any[] {
   if (!csv) throw new Error("Empty CSV");
 
+  const delimiter = typeof delimiterOrOptions === 'string' ? delimiterOrOptions : ',';
+  const parseOptions = typeof delimiterOrOptions === 'string' ? options : delimiterOrOptions;
   const parsed = parseRows(csv, delimiter);
   if (parsed.length <= 1)
     throw new Error("File must have at least 2 rows. 1st row contains headers.");
 
-  const compiledHeaders = compileHeaders(parsed[0].values);
+  const compiledHeaders = compileHeaders(parsed[0].values.map(header =>
+    parseOptions.preserveHeaderSpaces ? header : header.trim()
+  ));
   const data = [];
 
   for (let i = 1; i < parsed.length; i++) {
     const row = parsed[i];
     // skip entirely blank trailing rows
     if (row.values.length === 1 && row.values[0] === '' && !row.quoted[0]) break;
-    data.push(generateJson(compiledHeaders, row.values, row.quoted));
+    const values = parseOptions.preserveValueSpaces
+      ? row.values
+      : row.values.map(value => value.trim());
+    data.push(generateJson(compiledHeaders, values, row.quoted));
   }
 
   return data;
@@ -81,13 +101,13 @@ function parseRows(csv: string, delimiter: string): TokenizeResult[] {
         }
         // Skip anything between closing quote and next delimiter / row-end
         while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r') i++;
-        values.push(out.trim());
+        values.push(out);
         quoted.push(true);
       } else {
         // --- Unquoted cell ---
         const start = i;
         while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r') i++;
-        values.push(csv.slice(start, i).trim());
+        values.push(csv.slice(start, i));
         quoted.push(false);
       }
 

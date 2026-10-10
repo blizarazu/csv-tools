@@ -3,20 +3,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.csvToJson = csvToJson;
 const MAX_NESTING_DEPTH = 100;
 const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
-function csvToJson(csv, delimiter = ',') {
+function csvToJson(csv, delimiterOrOptions = ',', options = {}) {
     if (!csv)
         throw new Error("Empty CSV");
+    const delimiter = typeof delimiterOrOptions === 'string' ? delimiterOrOptions : ',';
+    const parseOptions = typeof delimiterOrOptions === 'string' ? options : delimiterOrOptions;
     const parsed = parseRows(csv, delimiter);
     if (parsed.length <= 1)
         throw new Error("File must have at least 2 rows. 1st row contains headers.");
-    const compiledHeaders = compileHeaders(parsed[0].values);
+    const compiledHeaders = compileHeaders(parsed[0].values.map(header => parseOptions.preserveHeaderSpaces ? header : header.trim()));
     const data = [];
     for (let i = 1; i < parsed.length; i++) {
         const row = parsed[i];
         // skip entirely blank trailing rows
         if (row.values.length === 1 && row.values[0] === '' && !row.quoted[0])
             break;
-        data.push(generateJson(compiledHeaders, row.values, row.quoted));
+        const values = parseOptions.preserveValueSpaces
+            ? row.values
+            : row.values.map(value => value.trim());
+        data.push(generateJson(compiledHeaders, values, row.quoted));
     }
     return data;
 }
@@ -73,7 +78,7 @@ function parseRows(csv, delimiter) {
                 // Skip anything between closing quote and next delimiter / row-end
                 while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r')
                     i++;
-                values.push(out.trim());
+                values.push(out);
                 quoted.push(true);
             }
             else {
@@ -81,7 +86,7 @@ function parseRows(csv, delimiter) {
                 const start = i;
                 while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r')
                     i++;
-                values.push(csv.slice(start, i).trim());
+                values.push(csv.slice(start, i));
                 quoted.push(false);
             }
             // Consume delimiter or row terminator
