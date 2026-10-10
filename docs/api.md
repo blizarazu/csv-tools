@@ -16,20 +16,23 @@ Converts a CSV string into an array of objects.
 |-----------|------|---------|-------------|
 | `csvData` | `string` | — | Full CSV text. First row must be headers. |
 | `delimiter` | `string` | `','` | Column separator. |
+| `options.delimiter` | `string` | `','` | Column separator when passing an options object as the second argument. |
 | `options.preserveHeaderSpaces` | `boolean` | `false` | Preserve leading and trailing spaces in header names instead of trimming them. |
 | `options.preserveValueSpaces` | `boolean` | `false` | Preserve leading and trailing spaces in field values instead of trimming them. |
+| `options.strict` | `boolean` | `false` | Reject input that does not conform to the RFC 4180 ABNF grammar. |
 
 **Returns:** `any[]` — one object per non-empty data row.
 
 **Throws:**
 
+- `CsvParseError` if `strict: true` and the CSV violates RFC 4180. The error has `.line` and `.column` properties.
 - `Error("Empty CSV")` if `csvData` is falsy.
 - `Error("File must have at least 2 rows. 1st row contains headers.")` if there is not at least one header row and one data row.
 - `Error("Maximum nesting depth exceeded")` if a dotted header is deeper than 100 levels.
 
 **Notes:**
 
-- Header names and field values are trimmed by default, which avoids accidental whitespace in JSON property names and values. Set either preservation option to `true` when exact CSV whitespace is needed.
+- Header names and field values are trimmed by default, which avoids accidental whitespace in JSON property names and values. Set either preservation option to `true` when exact CSV whitespace is needed. Strict mode always preserves whitespace.
 - Path segments `__proto__`, `prototype`, and `constructor` are ignored (prototype-pollution guard).
 - See [architecture.md](architecture.md) for tokenization and type coercion rules.
 
@@ -45,6 +48,9 @@ csv.toJSON(' name , note \n Ada , hello ', {
   preserveValueSpaces: true,
 });
 // → [{ ' name ': ' Ada ', ' note ': ' hello ' }]
+
+csv.toJSON('first,last\r\n"Ada","Lovelace"', { strict: true });
+// → [{ first: 'Ada', last: 'Lovelace' }]
 ```
 
 ## `fromJSON(jsonArray[, delimiter])`

@@ -1,5 +1,6 @@
 import { expect } from 'chai';
 import * as csv from '../lib/index';
+import { CsvParseError } from '../lib/index';
 
 describe("CSV Tools", function () {
   describe('Parse CSV (first_name, last name\\n"Lois","Rivera") to JSON', function () {
@@ -461,6 +462,168 @@ describe("CSV Tools", function () {
     it("should treat null as an empty cell without throwing", function () {
       const csvOut = csv.fromJSON([{ a: null, b: 2 }]);
       expect(csvOut).to.equal('"a","b"\r\n,2');
+    });
+  });
+
+  describe("RFC 4180 strict validation", function () {
+    describe("Valid CSV", function () {
+      it("should accept valid CSV with CRLF line breaks", function () {
+        const validCsv = "a,b,c\r\n1,2,3\r\n4,5,6";
+        const result = csv.toJSON(validCsv, { strict: true });
+        expect(result).to.deep.equal([{ a: 1, b: 2, c: 3 }, { a: 4, b: 5, c: 6 }]);
+      });
+
+      it("should accept a trailing CRLF after the last record", function () {
+        const validCsv = "a,b\r\n1,2\r\n";
+        const result = csv.toJSON(validCsv, { strict: true });
+        expect(result).to.deep.equal([{ a: 1, b: 2 }]);
+      });
+
+      it("should preserve CRLF inside quoted fields", function () {
+        const validCsv = 'title,notes\r\n"Hello","Line1\r\nLine2"';
+        const result = csv.toJSON(validCsv, { strict: true });
+        expect(result).to.deep.equal([{ title: "Hello", notes: "Line1\r\nLine2" }]);
+      });
+
+      it("should handle escaped double quotes inside quoted fields", function () {
+        const validCsv = 'a\r\n"He said ""hi"""';
+        const result = csv.toJSON(validCsv, { strict: true });
+        expect(result).to.deep.equal([{ a: 'He said "hi"' }]);
+      });
+
+      it("should accept empty fields", function () {
+        const validCsv = "a,b,c\r\n1,,3";
+        const result = csv.toJSON(validCsv, { strict: true });
+        expect(result).to.deep.equal([{ a: 1, c: 3 }]);
+      });
+    });
+
+    describe("G1: Record separator must be CRLF", function () {
+      it("should reject bare LF as record separator", function () {
+        expect(() => csv.toJSON("a,b\n1,2", { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('bare LF');
+      });
+
+      it("should reject bare CR as record separator", function () {
+        expect(() => csv.toJSON("a,b\r1,2", { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('bare CR');
+      });
+    });
+
+    describe("G2: Spaces are part of the field (no trimming)", function () {
+      it("should preserve leading and trailing spaces in unquoted fields", function () {
+        const validCsv = "a,b\r\n hello , world ";
+        const result = csv.toJSON(validCsv, { strict: true });
+        expect(result).to.deep.equal([{ a: " hello ", b: " world " }]);
+      });
+
+      it("should preserve spaces inside quoted fields", function () {
+        const validCsv = 'a\r\n" padded "';
+        const result = csv.toJSON(validCsv, { strict: true });
+        expect(result).to.deep.equal([{ a: " padded " }]);
+      });
+    });
+
+    describe("G3: All records must have the same number of fields", function () {
+      it("should reject rows with fewer fields than the header", function () {
+        expect(() => csv.toJSON("a,b,c\r\n1,2", { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('2 field(s), expected 3');
+      });
+
+      it("should reject rows with more fields than the header", function () {
+        expect(() => csv.toJSON("a,b\r\n1,2,3", { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('3 field(s), expected 2');
+      });
+    });
+
+    describe("G4: Unclosed double quotes", function () {
+      it("should reject a field with an opening quote but no closing quote", function () {
+        expect(() => csv.toJSON('a\r\n"no close', { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('Unclosed double quote');
+      });
+    });
+
+    describe("G5: No characters after closing double quote", function () {
+      it("should reject characters between closing quote and delimiter", function () {
+        expect(() => csv.toJSON('a,b\r\n"ok"garbage,2', { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('Unexpected character');
+      });
+
+      it("should reject characters between closing quote and CRLF", function () {
+        expect(() => csv.toJSON('a\r\n"ok"X', { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('Unexpected character');
+      });
+    });
+
+    describe("G6: Unquoted fields must only contain TEXTDATA", function () {
+      it("should reject a bare double quote inside an unquoted field", function () {
+        expect(() => csv.toJSON('a\r\nhe"llo', { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('U+0022');
+      });
+
+      it("should reject control characters in unquoted fields", function () {
+        expect(() => csv.toJSON("a\r\nhel\x01lo", { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('U+0001');
+      });
+
+      it("should reject non-ASCII characters in unquoted fields", function () {
+        expect(() => csv.toJSON("a\r\ncaf\u00E9", { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('TEXTDATA');
+      });
+
+      it("should allow non-ASCII characters inside quoted fields", function () {
+        const validCsv = 'a\r\n"caf\u00E9"';
+        const result = csv.toJSON(validCsv, { strict: true });
+        expect(result).to.deep.equal([{ a: "café" }]);
+      });
+    });
+
+    describe("G7: Delimiter must be comma", function () {
+      it("should reject a non-comma delimiter in strict mode", function () {
+        expect(() => csv.toJSON("a;b\r\n1;2", { strict: true, delimiter: ';' }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('comma');
+      });
+    });
+
+    describe("CsvParseError properties", function () {
+      it("should include line and column numbers", function () {
+        try {
+          csv.toJSON("a,b\r\n1,2\n3,4", { strict: true });
+          expect.fail("should have thrown");
+        } catch (e) {
+          expect(e).to.be.instanceOf(CsvParseError);
+          expect((e as CsvParseError).line).to.be.a('number');
+          expect((e as CsvParseError).column).to.be.a('number');
+        }
+      });
+    });
+
+    describe("Backward compatibility", function () {
+      it("should default to lenient mode (no strict)", function () {
+        const result = csv.toJSON("a,b\n1,2");
+        expect(result).to.deep.equal([{ a: 1, b: 2 }]);
+      });
+
+      it("should accept options object with strict=false", function () {
+        const result = csv.toJSON("a,b\n1,2", { strict: false });
+        expect(result).to.deep.equal([{ a: 1, b: 2 }]);
+      });
+
+      it("should still accept a plain string delimiter for backward compatibility", function () {
+        const result = csv.toJSON("a;b\n1;2", ";");
+        expect(result).to.deep.equal([{ a: 1, b: 2 }]);
+      });
     });
   });
 });
