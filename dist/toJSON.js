@@ -37,18 +37,16 @@ function csvToJson(csv, delimiterOrOptions = ',', options = {}) {
         const expectedFields = parsed[0].values.length;
         for (let r = 1; r < parsed.length; r++) {
             const row = parsed[r];
-            if (row.values.length === 1 && row.values[0] === '' && !row.quoted[0])
-                continue;
             if (row.values.length !== expectedFields) {
-                throw new CsvParseError(`Row has ${row.values.length} field(s), expected ${expectedFields}`, r + 1, 0);
+                throw new CsvParseError(`Row has ${row.values.length} field(s), expected ${expectedFields}`, row.line, 0);
             }
         }
     }
     const data = [];
     for (let i = 1; i < parsed.length; i++) {
         const row = parsed[i];
-        // skip entirely blank trailing rows
-        if (row.values.length === 1 && row.values[0] === '' && !row.quoted[0])
+        // Lenient mode preserves its historical behavior of stopping at a blank row.
+        if (!strict && row.values.length === 1 && row.values[0] === '' && !row.quoted[0])
             break;
         const values = strict || parseOptions.preserveValueSpaces
             ? row.values
@@ -76,6 +74,7 @@ function parseRows(csv, delimiter, strict) {
     let lineStart = 0;
     while (i <= n) {
         // Start a new row
+        const recordLine = currentLine;
         const values = [];
         const quoted = [];
         while (i <= n) {
@@ -108,6 +107,16 @@ function parseRows(csv, delimiter, strict) {
                     if (csv[i] === '\n') {
                         currentLine++;
                         lineStart = i + 1;
+                    }
+                    if (strict) {
+                        const code = csv.charCodeAt(i);
+                        const isAllowed = (code >= 0x20 && code <= 0x21)
+                            || (code >= 0x23 && code <= 0x2B)
+                            || (code >= 0x2D && code <= 0x7E)
+                            || csv[i] === ',' || csv[i] === '\r' || csv[i] === '\n';
+                        if (!isAllowed) {
+                            throw new CsvParseError(`Invalid character U+${code.toString(16).toUpperCase().padStart(4, '0')} in quoted field; only TEXTDATA, comma, CR, LF, and escaped double quotes are allowed`, currentLine, i - lineStart);
+                        }
                     }
                     i++;
                 }
@@ -165,7 +174,7 @@ function parseRows(csv, delimiter, strict) {
             }
         }
         if (values.length > 0) {
-            rows.push({ values, quoted });
+            rows.push({ values, quoted, line: recordLine });
         }
         if (i < n) {
             if (csv[i] === '\r' && i + 1 < n && csv[i + 1] === '\n') {

@@ -496,6 +496,11 @@ describe("CSV Tools", function () {
         const result = csv.toJSON(validCsv, { strict: true });
         expect(result).to.deep.equal([{ a: 1, c: 3 }]);
       });
+
+      it("should preserve an empty one-column record", function () {
+        const result = csv.toJSON("a\r\n\r\n", { strict: true });
+        expect(result).to.deep.equal([{}]);
+      });
     });
 
     describe("G1: Record separator must be CRLF", function () {
@@ -537,6 +542,12 @@ describe("CSV Tools", function () {
         expect(() => csv.toJSON("a,b\r\n1,2,3", { strict: true }))
           .to.throw(CsvParseError)
           .with.property('message').that.includes('3 field(s), expected 2');
+      });
+
+      it("should reject a blank record when the header has multiple fields", function () {
+        expect(() => csv.toJSON("a,b\r\n1,2\r\n\r\n3,4", { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('1 field(s), expected 2');
       });
     });
 
@@ -581,10 +592,16 @@ describe("CSV Tools", function () {
           .with.property('message').that.includes('TEXTDATA');
       });
 
-      it("should allow non-ASCII characters inside quoted fields", function () {
-        const validCsv = 'a\r\n"caf\u00E9"';
-        const result = csv.toJSON(validCsv, { strict: true });
-        expect(result).to.deep.equal([{ a: "café" }]);
+      it("should reject non-ASCII characters inside quoted fields", function () {
+        expect(() => csv.toJSON('a\r\n"caf\u00E9"', { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('U+00E9');
+      });
+
+      it("should reject control characters inside quoted fields", function () {
+        expect(() => csv.toJSON('a\r\n"tab\there"', { strict: true }))
+          .to.throw(CsvParseError)
+          .with.property('message').that.includes('U+0009');
       });
     });
 
@@ -597,14 +614,25 @@ describe("CSV Tools", function () {
     });
 
     describe("CsvParseError properties", function () {
-      it("should include line and column numbers", function () {
+      it("should report the exact location of a record separator error", function () {
         try {
           csv.toJSON("a,b\r\n1,2\n3,4", { strict: true });
           expect.fail("should have thrown");
         } catch (e) {
           expect(e).to.be.instanceOf(CsvParseError);
-          expect((e as CsvParseError).line).to.be.a('number');
-          expect((e as CsvParseError).column).to.be.a('number');
+          expect((e as CsvParseError).line).to.equal(2);
+          expect((e as CsvParseError).column).to.equal(3);
+        }
+      });
+
+      it("should report the physical line for a field-count error after a multiline field", function () {
+        try {
+          csv.toJSON('a,b\r\n"one\r\ntwo",2\r\n3', { strict: true });
+          expect.fail("should have thrown");
+        } catch (e) {
+          expect(e).to.be.instanceOf(CsvParseError);
+          expect((e as CsvParseError).line).to.equal(4);
+          expect((e as CsvParseError).column).to.equal(0);
         }
       });
     });
@@ -623,6 +651,16 @@ describe("CSV Tools", function () {
       it("should still accept a plain string delimiter for backward compatibility", function () {
         const result = csv.toJSON("a;b\n1;2", ";");
         expect(result).to.deep.equal([{ a: 1, b: 2 }]);
+      });
+
+      it("should accept the delimiter in an options object", function () {
+        const result = csv.toJSON("a;b\n1;2", { delimiter: ";" });
+        expect(result).to.deep.equal([{ a: 1, b: 2 }]);
+      });
+
+      it("should support strict mode as the third argument", function () {
+        const result = csv.toJSON(" a ,b\r\n x , y ", ",", { strict: true });
+        expect(result).to.deep.equal([{ " a ": " x ", b: " y " }]);
       });
     });
   });
