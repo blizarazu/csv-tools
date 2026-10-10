@@ -8,19 +8,20 @@ const csv = require('csv-tools');
 import * as csv from 'csv-tools';
 ```
 
-## `toJSON(csvData[, delimiter])`
+## `toJSON(csvData[, delimiterOrOptions])`
 
 Converts a CSV string into an array of objects.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `csvData` | `string` | — | Full CSV text. First row must be headers. |
-| `delimiter` | `string` | `','` | Column separator. |
+| `delimiterOrOptions` | `string` \| `ToJsonOptions` | `{ delimiter: ',', strict: false }` | Delimiter string, or an options object: `{ delimiter?: string, strict?: boolean }`. |
 
 **Returns:** `any[]` — one object per non-empty data row.
 
 **Throws:**
 
+- `CsvParseError` if `strict: true` and the CSV violates the RFC 4180 ABNF grammar. This error includes `.line` and `.column` properties.
 - `Error("Empty CSV")` if `csvData` is falsy.
 - `Error("File must have at least 2 rows. 1st row contains headers.")` if there is not at least one header row and one data row.
 - `Error("Maximum nesting depth exceeded")` if a dotted header is deeper than 100 levels.

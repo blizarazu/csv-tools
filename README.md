@@ -135,14 +135,16 @@ To use this module:
 var csv = require('csv-tools');
 ```
 
-#### csv.toJSON(csvData[, delimiter])
+#### csv.toJSON(csvData[, delimiterOrOptions])
 - `csvData` [&lt;string&gt;]
-- `delimiter` [&lt;string&gt;] __Default:__ `,`
+- `delimiterOrOptions` [&lt;string&gt;] | [&lt;Object&gt;] __Default:__ `,`
 - Returns: [&lt;Object&gt;] A JSON object with the data in the CVS string
 
 Convert `csvData` to JSON.
 
-`delimiter` refers to the character used to separate CVS columns. Comma (,) by default.
+You can pass a `delimiter` string (default `,`) or an options object `{ delimiter: string, strict: boolean }`.
+If `strict` is set to `true`, the parser will strictly validate the input against the RFC 4180 ABNF grammar and throw a `csv.CsvParseError` (which includes `line` and `column` properties) if the CSV is malformed.
+
 ```
 var csv = require('csv-tools');
 
@@ -151,6 +153,15 @@ var csvData = "first_name,last_name,gender\nDennis,Anderson,Male\nPeter,Hicks,Ma
 var json = csv.toJSON(csvData);
 
 console.log(JSON.stringify(json, null, 2));
+
+// Strict mode example:
+try {
+  var strictJson = csv.toJSON(csvData, { strict: true });
+} catch (e) {
+  if (e instanceof csv.CsvParseError) {
+    console.error("Parse error at line " + e.line + ", col " + e.column + ": " + e.message);
+  }
+}
 ```
 
 #### csv.fileToJSON(csvFilePath[, delimiter], callback)

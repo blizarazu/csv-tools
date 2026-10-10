@@ -1,14 +1,68 @@
 const MAX_NESTING_DEPTH = 100;
 const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
-export function csvToJson(csv: string, delimiter: string = ','): any[] {
+/**
+ * Error thrown when strict RFC 4180 validation fails.
+ * Includes the line and column where the violation was detected.
+ */
+export class CsvParseError extends Error {
+  public readonly line: number;
+  public readonly column: number;
+
+  constructor(message: string, line: number, column: number) {
+    super(`RFC 4180 violation at line ${line}, col ${column}: ${message}`);
+    this.name = 'CsvParseError';
+    this.line = line;
+    this.column = column;
+  }
+}
+
+export interface ToJsonOptions {
+  delimiter?: string;
+  /** When true, reject CSV that does not conform to the RFC 4180 ABNF grammar. */
+  strict?: boolean;
+}
+
+export function csvToJson(csv: string, delimiterOrOptions?: string | ToJsonOptions): any[] {
   if (!csv) throw new Error("Empty CSV");
 
-  const parsed = parseRows(csv, delimiter);
+  let delimiter = ',';
+  let strict = false;
+
+  if (typeof delimiterOrOptions === 'string') {
+    delimiter = delimiterOrOptions;
+  } else if (delimiterOrOptions) {
+    delimiter = delimiterOrOptions.delimiter ?? ',';
+    strict = delimiterOrOptions.strict ?? false;
+  }
+
+  // G7: RFC 4180 mandates comma as the sole delimiter.
+  if (strict && delimiter !== ',') {
+    throw new CsvParseError('RFC 4180 requires comma (,) as delimiter', 1, 0);
+  }
+
+  const parsed = parseRows(csv, delimiter, strict);
   if (parsed.length <= 1)
     throw new Error("File must have at least 2 rows. 1st row contains headers.");
 
   const compiledHeaders = compileHeaders(parsed[0].values);
+
+  // G3: Every record must have the same number of fields as the header.
+  if (strict) {
+    const expectedFields = parsed[0].values.length;
+    for (let r = 1; r < parsed.length; r++) {
+      const row = parsed[r];
+      // skip entirely blank trailing rows (optional trailing CRLF per the ABNF)
+      if (row.values.length === 1 && row.values[0] === '' && !row.quoted[0]) continue;
+      if (row.values.length !== expectedFields) {
+        throw new CsvParseError(
+          `Row has ${row.values.length} field(s), expected ${expectedFields}`,
+          r + 1, 0
+        );
+      }
+    }
+  }
+
   const data = [];
 
   for (let i = 1; i < parsed.length; i++) {
@@ -36,11 +90,18 @@ interface TokenizeResult {
  * This replaces the old `csv.split('\n')` + `tokenize(row)` two-pass approach:
  * every character is visited exactly once, and no intermediate row-string array
  * is allocated, which makes it both correct for multiline cells and faster.
+ *
+ * When `strict` is true the parser rejects input that violates the RFC 4180
+ * ABNF grammar, throwing `CsvParseError` with line and column information.
  */
-function parseRows(csv: string, delimiter: string): TokenizeResult[] {
+function parseRows(csv: string, delimiter: string, strict: boolean): TokenizeResult[] {
   const rows: TokenizeResult[] = [];
   const n = csv.length;
   let i = 0;
+
+  // Line/column tracking for error messages.
+  let currentLine = 1;
+  let lineStart = 0;
 
   while (i <= n) {
     // Start a new row
@@ -55,7 +116,8 @@ function parseRows(csv: string, delimiter: string): TokenizeResult[] {
       }
 
       if (csv[i] === '"') {
-        // --- Quoted cell ---
+        // --- Quoted cell (escaped field) ---
+        const fieldStartCol = i - lineStart;
         i++; // skip opening quote
         let start = i;
         let out = '';
@@ -74,20 +136,61 @@ function parseRows(csv: string, delimiter: string): TokenizeResult[] {
             closed = true;
             break;
           }
+          // Track newlines inside quoted fields for accurate line numbers.
+          if (csv[i] === '\n') {
+            currentLine++;
+            lineStart = i + 1;
+          }
           i++;
         }
         if (!closed) {
+          // G4: An escaped field must have a closing double-quote.
+          if (strict) {
+            throw new CsvParseError('Unclosed double quote in escaped field', currentLine, fieldStartCol);
+          }
           out += csv.slice(start, i);
         }
-        // Skip anything between closing quote and next delimiter / row-end
-        while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r') i++;
-        values.push(out.trim());
+        // G5: After closing quote only delimiter, CR, LF, or end-of-string
+        // may appear. In lenient mode extra characters are silently skipped.
+        if (strict) {
+          if (i < n && csv[i] !== delimiter && csv[i] !== '\r' && csv[i] !== '\n') {
+            throw new CsvParseError(
+              `Unexpected character '${csv[i]}' after closing double quote`,
+              currentLine, i - lineStart
+            );
+          }
+        } else {
+          // Skip anything between closing quote and next delimiter / row-end
+          while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r') i++;
+        }
+        // G2: In strict mode spaces are part of the field (no trimming).
+        values.push(strict ? out : out.trim());
         quoted.push(true);
       } else {
-        // --- Unquoted cell ---
+        // --- Unquoted cell (non-escaped field) ---
         const start = i;
         while (i < n && csv[i] !== delimiter && csv[i] !== '\n' && csv[i] !== '\r') i++;
-        values.push(csv.slice(start, i).trim());
+        const raw = csv.slice(start, i);
+        if (strict) {
+          // G6: non-escaped = *TEXTDATA
+          // TEXTDATA = %x20-21 / %x23-2B / %x2D-7E
+          for (let j = 0; j < raw.length; j++) {
+            const code = raw.charCodeAt(j);
+            const isTextdata = (code >= 0x20 && code <= 0x21)
+                            || (code >= 0x23 && code <= 0x2B)
+                            || (code >= 0x2D && code <= 0x7E);
+            if (!isTextdata) {
+              throw new CsvParseError(
+                `Invalid character U+${code.toString(16).toUpperCase().padStart(4, '0')} in unquoted field; only TEXTDATA (%x20-21 / %x23-2B / %x2D-7E) is allowed`,
+                currentLine, (start + j) - lineStart
+              );
+            }
+          }
+          // G2: No trimming in strict mode.
+          values.push(raw);
+        } else {
+          values.push(raw.trim());
+        }
         quoted.push(false);
       }
 
@@ -110,10 +213,41 @@ function parseRows(csv: string, delimiter: string): TokenizeResult[] {
       rows.push({ values, quoted });
     }
 
-    // Advance past \r\n or \n
-    if (i < n && csv[i] === '\r') i++;
-    if (i < n && csv[i] === '\n') i++;
-    else break; // end of string
+    // Advance past row terminator, validating CRLF in strict mode.
+    if (i < n) {
+      if (csv[i] === '\r' && i + 1 < n && csv[i + 1] === '\n') {
+        // Valid CRLF
+        i += 2;
+        currentLine++;
+        lineStart = i;
+      } else if (csv[i] === '\n') {
+        // G1: Bare LF is not a valid record separator per RFC 4180.
+        if (strict) {
+          throw new CsvParseError(
+            'Record separator must be CRLF (\\r\\n), found bare LF (\\n)',
+            currentLine, i - lineStart
+          );
+        }
+        i++;
+        currentLine++;
+        lineStart = i;
+      } else if (csv[i] === '\r') {
+        // Bare CR — also not valid CRLF.
+        if (strict) {
+          throw new CsvParseError(
+            'Record separator must be CRLF (\\r\\n), found bare CR (\\r)',
+            currentLine, i - lineStart
+          );
+        }
+        i++;
+        currentLine++;
+        lineStart = i;
+      } else {
+        break;
+      }
+    } else {
+      break; // end of string
+    }
   }
 
   return rows;

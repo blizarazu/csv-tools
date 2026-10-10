@@ -21,8 +21,8 @@ Build target is ES5 CommonJS (`tsconfig.json`), with declarations written to `di
 
 1. Reject empty input.
 2. Split on newlines; require at least a header row and one data row.
-3. Tokenize the header row and each data row with a linear, delimiter-literal parser that understands quoted fields and escaped quotes (`""`) — the delimiter is never interpolated into a `RegExp`. Quoted fields are unescaped in a single pass (slice-based, not char-by-char concatenation).
-4. Trim tokens. Compile header paths once into segment arrays (reject dangerous keys and excessive depth up front).
+3. Tokenize the header row and each data row with a linear, delimiter-literal parser that understands quoted fields and escaped quotes (`""`). If `strict: true` is passed, the parser enforces the RFC 4180 ABNF grammar (requiring CRLF, rejecting trimming, rejecting unclosed quotes, and validating TEXTDATA). Quoted fields are unescaped in a single pass.
+4. Trim tokens (unless in `strict` mode). Compile header paths once into segment arrays (reject dangerous keys and excessive depth up front).
 5. For each data row, assign values along the precompiled paths iteratively (no per-cell `split`/`join`).
 6. Coerce cell values:
    - quoted cells → `string` (preserves `"404"`, `"true"`, etc.)
