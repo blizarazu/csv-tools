@@ -40,6 +40,51 @@ Config files of note:
 
 The `examples/` directory contains sample scripts and a sample CSV. They illustrate typical usage; they are not a substitute for the unit tests.
 
+## Continuous integration
+
+GitHub Actions runs on pushes and pull requests to `master`:
+
+- Workflow: [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+- Steps: `npm ci` → `npm test` → `npm run build`
+- Node versions: 22 and 24
+
+## Releasing to npm
+
+Publishing is automated on version tags via Trusted Publishing (OIDC). No long-lived npm token is stored in the repository.
+
+1. Ensure the working tree is clean and `master` is up to date.
+2. Bump the version (runs `preversion` → test, build, stage `dist/`):
+
+   ```bash
+   npm version patch   # or minor / major
+   ```
+
+3. Push the commit and tag:
+
+   ```bash
+   git push && git push --tags
+   ```
+
+4. The [`.github/workflows/publish.yml`](../.github/workflows/publish.yml) workflow:
+   - triggers on tags matching `v*`
+   - checks that the tag (without `v`) matches `package.json` version
+   - runs test and build
+   - runs `npm publish --access public` with provenance via OIDC
+
+### One-time Trusted Publisher setup
+
+On [npmjs.com](https://www.npmjs.com/) → package **csv-tools** → **Settings** → **Trusted Publisher**:
+
+| Field | Value |
+|-------|-------|
+| Provider | GitHub Actions |
+| Organization/user | `blizarazu` |
+| Repository | `csv-tools` |
+| Workflow filename | `publish.yml` |
+| Environment | _(leave empty)_ |
+
+Allow `npm publish` for that trusted publisher.
+
 ## Contribution notes
 
 - Keep the public API small and synchronous unless there is a strong reason to expand it.

@@ -22,6 +22,8 @@ npm run build     # tsc → dist/
 
 `precommit` / `preversion` run tests, build, and stage `dist/`. Prefer the same flow before finishing a change that affects the public API.
 
+CI: GitHub Actions (`.github/workflows/ci.yml`) on `master` PRs/pushes. npm publish: tag `v*` → `.github/workflows/publish.yml` (Trusted Publishing). See [docs/development.md](docs/development.md).
+
 ## Repository layout
 
 | Path | Role |

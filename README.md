@@ -1,7 +1,7 @@
 # CSV Tools
 Node module to convert CSV to JSON and JSON to CSV.
 
-[![Build Status](https://travis-ci.org/blizarazu/csv-tools.svg?branch=master)](https://travis-ci.org/blizarazu/csv-tools)
+[![CI](https://github.com/blizarazu/csv-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/blizarazu/csv-tools/actions/workflows/ci.yml)
 
 CSV Tools converts CSV text to JavaScript objects and JSON-compatible data back to CSV. Nested object paths use dotted headers, such as `owner.name.first`.
 
